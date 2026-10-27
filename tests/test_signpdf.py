@@ -1,0 +1,387 @@
+"""Safety and geometry tests; optional real PDF signing uses synthetic keys only."""
+
+from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timedelta, timezone
+import importlib.util
+import io
+import json
+import logging
+import os
+from pathlib import Path
+import stat
+import sys
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+import signpdf
+
+try:
+    import pypdf
+except ImportError:
+    pypdf = None
+
+
+class PDFTestBase(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.source = self.root / "document.pdf"
+        self.create_pdf(self.source)
+
+    def create_pdf(self, path, *, rotation=0, crop=None, unit=1, field=None, signed=False):
+        from pypdf import PdfWriter
+        from pypdf.generic import (ArrayObject, ByteStringObject, DictionaryObject,
+                                   FloatObject, NameObject, NumberObject, TextStringObject)
+        writer = PdfWriter()
+        page = writer.add_blank_page(width=600, height=800)
+        page[NameObject("/Rotate")] = NumberObject(rotation)
+        page[NameObject("/UserUnit")] = FloatObject(unit)
+        if crop is not None:
+            page.cropbox = pypdf.generic.RectangleObject(crop)
+        if field:
+            widget = DictionaryObject({
+                NameObject("/FT"): NameObject("/Sig"),
+                NameObject("/Type"): NameObject("/Annot"),
+                NameObject("/Subtype"): NameObject("/Widget"),
+                NameObject("/T"): TextStringObject(field),
+                NameObject("/Rect"): ArrayObject([NumberObject(v) for v in (20, 20, 180, 80)]),
+                NameObject("/P"): page.indirect_reference,
+            })
+            if signed:
+                widget[NameObject("/V")] = ByteStringObject(b"synthetic occupied field")
+            ref = writer._add_object(widget)
+            page[NameObject("/Annots")] = ArrayObject([ref])
+            writer.root_object[NameObject("/AcroForm")] = writer._add_object(
+                DictionaryObject({NameObject("/Fields"): ArrayObject([ref])}))
+        with path.open("wb") as stream:
+            writer.write(stream)
+
+    def args(self, *extra):
+        return signpdf.parser().parse_args([str(self.source), *extra])
+
+
+@unittest.skipUnless(pypdf, "pypdf is required for layout and file-safety tests")
+class PDFCase(PDFTestBase):
+    def test_lists_canonical_signature_field_without_authentication(self):
+        self.create_pdf(self.source, field="SupplierSignature")
+        output = io.StringIO()
+        with redirect_stdout(output), patch.object(signpdf, "authenticate_and_sign") as auth:
+            self.assertEqual(signpdf.execute(self.args("--list-fields")), 0)
+        self.assertEqual(json.loads(output.getvalue()), dict(name="SupplierSignature", status="empty"))
+        auth.assert_not_called()
+
+    def test_selects_existing_empty_field(self):
+        self.create_pdf(self.source, field="SupplierSignature")
+        chosen = signpdf.choose_placement(self.args("--field", "SupplierSignature"),
+                                          signpdf.pdf_reader(self.source))
+        self.assertEqual(chosen, signpdf.Placement("SupplierSignature", existing=True))
+
+    def test_rejects_missing_and_occupied_fields(self):
+        for signed in (False, True):
+            self.create_pdf(self.source, field="SupplierSignature", signed=signed)
+            name = "SupplierSignature" if signed else "MissingSignature"
+            with self.subTest(signed=signed), self.assertRaises(signpdf.SignPDFError):
+                signpdf.choose_placement(self.args("--field", name), signpdf.pdf_reader(self.source))
+
+    def test_new_name_does_not_reuse_existing_field(self):
+        self.create_pdf(self.source, field="Signature1")
+        chosen = signpdf.choose_placement(self.args("--invisible"), signpdf.pdf_reader(self.source))
+        self.assertEqual(chosen.field, "Signature2")
+
+    def test_rejects_duplicate_and_invalid_new_names(self):
+        self.create_pdf(self.source, field="Signature1")
+        for name in ("Signature1", "", "Nested.Field", "1Name", "Line\nBreak"):
+            with self.subTest(name=name), self.assertRaises(signpdf.SignPDFError):
+                signpdf.choose_placement(self.args("--invisible", "--name", name),
+                                         signpdf.pdf_reader(self.source))
+
+    def test_mm_geometry_for_all_quarter_turns(self):
+        # A 10x20 unit rectangle starts 30 units right and 40 units down.
+        rect = tuple(n / signpdf.POINTS_PER_MM for n in (30, 40, 10, 20))
+        expected = {0: (40, 660, 50, 680), 90: (50, 50, 70, 60),
+                    180: (470, 60, 480, 80), 270: (450, 680, 470, 690)}
+        for rotation, box in expected.items():
+            self.create_pdf(self.source, rotation=rotation, crop=(10, 20, 510, 720))
+            page = signpdf.pdf_reader(self.source).pages[0]
+            actual = signpdf.pdf_box(page, rect)
+            with self.subTest(rotation=rotation):
+                for observed, wanted in zip(actual, box):
+                    self.assertAlmostEqual(observed, wanted)
+
+    def test_user_unit_scales_physical_dimensions(self):
+        self.create_pdf(self.source, unit=2)
+        page = signpdf.pdf_reader(self.source).pages[0]
+        actual = signpdf.pdf_box(page, (0, 0, 25.4, 25.4))
+        self.assertEqual(actual, (0, 764, 36, 800))
+
+    def test_crop_is_intersected_with_media_box(self):
+        self.create_pdf(self.source, crop=(-100, -100, 900, 900))
+        page = signpdf.pdf_reader(self.source).pages[0]
+        self.assertEqual(signpdf.pdf_box(page, (0, 0, 25.4, 25.4)), (0, 728, 72, 800))
+
+    def test_rejects_out_of_page_rectangle_and_invalid_page(self):
+        for extra in [("--rect-mm", "200,200,50,50"),
+                      ("--rect-mm", "0,0,10,10", "--page", "0"),
+                      ("--rect-mm", "0,0,10,10", "--page", "2"),
+                      ("--rect-mm", "0,0,10,10", "--page", "wrong")]:
+            with self.subTest(extra=extra), self.assertRaises(signpdf.SignPDFError):
+                signpdf.choose_placement(self.args(*extra), signpdf.pdf_reader(self.source))
+
+    def test_rejects_bad_rectangle_numbers(self):
+        for value in ("nan,0,1,1", "0,0,inf,1", "0,0,1", "-1,0,2,2", "0,0,0,2"):
+            with self.subTest(value=value), self.assertRaises(Exception):
+                signpdf.rectangle(value)
+
+    def test_default_output_is_a_separate_pdf(self):
+        self.assertEqual(signpdf.output_path(self.source, None), self.root.resolve() / "document.signed.pdf")
+
+    def test_rejects_input_output_aliases(self):
+        hardlink = self.root / "hardlink.pdf"
+        os.link(self.source, hardlink)
+        alias = self.root / "directory-alias"
+        alias.symlink_to(self.root, target_is_directory=True)
+        for candidate in (self.source, hardlink, alias / self.source.name):
+            with self.subTest(candidate=candidate), self.assertRaises(signpdf.SignPDFError):
+                signpdf.output_path(self.source, candidate)
+
+    def test_rejects_output_symlinks_and_directories(self):
+        symlink = self.root / "symlink.pdf"
+        symlink.symlink_to(self.root / "missing.pdf")
+        for candidate in (symlink, self.root):
+            with self.subTest(candidate=candidate), self.assertRaises(signpdf.SignPDFError):
+                signpdf.output_path(self.source, candidate)
+
+    def test_publish_does_not_replace_a_newly_created_path(self):
+        staged = self.root / "staged.pdf"
+        staged.write_bytes(b"synthetic signed result")
+        output = self.root / "output.pdf"
+        output.write_bytes(b"other writer")
+        with self.assertRaises(signpdf.SignPDFError):
+            signpdf.publish(staged, output, None)
+        self.assertEqual(output.read_bytes(), b"other writer")
+
+    def test_publish_permissions_and_changed_output(self):
+        staged = self.root / "staged.pdf"
+        staged.write_bytes(b"synthetic signed result")
+        output = self.root / "output.pdf"
+        signpdf.publish(staged, output, None)
+        self.assertEqual(stat.S_IMODE(output.stat().st_mode), 0o600)
+        original = signpdf.file_identity(output)
+        output.write_bytes(b"changed by another writer")
+        with self.assertRaises(signpdf.SignPDFError):
+            signpdf.publish(staged, output, original)
+
+    def test_existing_output_survives_signing_failure(self):
+        output = self.root / "document.signed.pdf"
+        output.write_bytes(b"existing output")
+        with patch.object(signpdf, "require_signing_dependencies"), \
+             patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "verify_pdf", return_value=set()), \
+             patch.object(signpdf, "authenticate_and_sign", side_effect=signpdf.SignPDFError("test failure")), \
+             patch("builtins.input", return_value="y"), redirect_stdout(io.StringIO()):
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.execute(self.args("--invisible"))
+        self.assertEqual(output.read_bytes(), b"existing output")
+        self.assertEqual(list(self.root.glob(".signpdf.*")), [])
+
+    def test_rejected_verification_never_publishes(self):
+        def synthetic_sign(source, staged, *unused):
+            staged.write_bytes(source.read_bytes() + b"\n% synthetic test trailer\n")
+        with patch.object(signpdf, "require_signing_dependencies"), \
+             patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "verify_pdf", side_effect=[set(), signpdf.SignPDFError("invalid")]), \
+             patch.object(signpdf, "authenticate_and_sign", side_effect=synthetic_sign), \
+             redirect_stdout(io.StringIO()):
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.execute(self.args("--invisible"))
+        self.assertFalse((self.root / "document.signed.pdf").exists())
+        self.assertEqual(list(self.root.glob(".signpdf.*")), [])
+
+    def test_cancelled_overwrite_never_authenticates(self):
+        (self.root / "document.signed.pdf").write_bytes(b"existing output")
+        with patch.object(signpdf, "require_signing_dependencies"), \
+             patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "authenticate_and_sign") as auth, \
+             patch("builtins.input", return_value="n"), redirect_stdout(io.StringIO()):
+            self.assertEqual(signpdf.execute(self.args("--invisible")), 0)
+        auth.assert_not_called()
+
+    def test_preexisting_signature_failure_prevents_authentication(self):
+        with patch.object(signpdf, "require_signing_dependencies"), \
+             patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "verify_pdf", side_effect=signpdf.SignPDFError("invalid signature")), \
+             patch.object(signpdf, "authenticate_and_sign") as auth:
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.execute(self.args("--invisible"))
+        auth.assert_not_called()
+
+    def test_op_request_never_contains_the_secret_reference(self):
+        settings = dict(reference="op://TEST_VAULT/TEST_ITEM/TEST_FIELD", module="test-module",
+                        token="TEST", key_id="01", cert_id="01", raw_mechanism=False)
+        with signpdf.private_workspace(self.root) as directory:
+            with patch.object(signpdf.subprocess, "run") as run:
+                run.return_value.returncode = 0
+                signpdf.authenticate_and_sign(self.source, directory / "signed.pdf",
+                                              signpdf.Placement("Signature1", False), settings, directory)
+            self.assertNotIn("op://", (directory / "request.json").read_text())
+            self.assertEqual(run.call_args.kwargs["env"][signpdf.PIN_ENV], settings["reference"])
+            self.assertNotIn(settings["reference"], run.call_args.args[0])
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
+
+    def test_exception_payloads_are_not_printed(self):
+        output = io.StringIO()
+        with patch.object(signpdf, "execute", side_effect=ValueError("SYNTHETIC_DO_NOT_DISPLAY")), \
+             redirect_stderr(output):
+            self.assertEqual(signpdf.main([str(self.source), "--invisible"]), 1)
+        self.assertNotIn("SYNTHETIC_DO_NOT_DISPLAY", output.getvalue())
+
+
+@unittest.skipUnless(pypdf and importlib.util.find_spec("pyhanko"), "pyHanko required for real cryptographic PDF tests")
+class CryptographicPDFTests(PDFTestBase):
+    """Generate synthetic signing material in memory; never load user credentials."""
+
+    @classmethod
+    def setUpClass(cls):
+        previous_logging_level = logging.root.manager.disable
+        logging.disable(logging.CRITICAL)
+        cls.addClassCleanup(logging.disable, previous_logging_level)
+        from asn1crypto import keys, x509 as asn1_x509
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+        from pyhanko.sign.signers import SimpleSigner
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Synthetic PDF Test Signer")])
+        now = datetime.now(timezone.utc)
+        cert = (x509.CertificateBuilder().subject_name(subject).issuer_name(subject)
+                .public_key(key.public_key()).serial_number(x509.random_serial_number())
+                .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=1))
+                .add_extension(x509.KeyUsage(True, True, False, False, False, False, False, False, False), critical=True)
+                .sign(key, hashes.SHA256()))
+        cls.signer = SimpleSigner(
+            signing_cert=asn1_x509.Certificate.load(cert.public_bytes(serialization.Encoding.DER)),
+            signing_key=keys.PrivateKeyInfo.load(key.private_bytes(
+                serialization.Encoding.DER, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())),
+            cert_registry=None,
+        )
+
+    def test_real_invisible_signature(self):
+        output = self.root / "signed.pdf"
+        signpdf.write_signed_pdf(self.source, output, signpdf.Placement("Signature1", False), self.signer)
+        signpdf.check_original_prefix(self.source, output)
+        self.assertEqual(signpdf.verify_pdf(output, {"Signature1"}, "Signature1"), {"Signature1"})
+
+    def test_real_visible_signature_on_rotated_cropped_page(self):
+        self.create_pdf(self.source, rotation=90, crop=(10, 20, 510, 720))
+        placement = signpdf.choose_placement(self.args("--rect-mm", "10,15,55,20"),
+                                              signpdf.pdf_reader(self.source))
+        output = self.root / "signed.pdf"
+        signpdf.write_signed_pdf(self.source, output, placement, self.signer)
+        self.assertEqual(signpdf.verify_pdf(output, {placement.field}, placement.field), {placement.field})
+
+    def test_real_existing_field(self):
+        self.create_pdf(self.source, field="SupplierSignature")
+        output = self.root / "signed.pdf"
+        signpdf.write_signed_pdf(self.source, output, signpdf.Placement("SupplierSignature", True), self.signer)
+        self.assertEqual(signpdf.verify_pdf(output, {"SupplierSignature"}, "SupplierSignature"), {"SupplierSignature"})
+
+    def test_real_rotated_existing_field_uses_upright_appearance(self):
+        self.create_pdf(self.source, field="SupplierSignature", rotation=90)
+        placement = signpdf.choose_placement(self.args("--field", "SupplierSignature"),
+                                             signpdf.pdf_reader(self.source))
+        self.assertEqual(placement.rotation, 90)
+        output = self.root / "signed.pdf"
+        signpdf.write_signed_pdf(self.source, output, placement, self.signer)
+        signpdf.verify_pdf(output, {placement.field}, placement.field)
+        field = signpdf.signature_fields(signpdf.pdf_reader(output))[placement.field]
+        widget = field.indirect_reference.get_object()
+        matrix = widget["/AP"]["/N"].get_object()["/Matrix"]
+        self.assertEqual(list(matrix)[:4], [0, 1, -1, 0])
+
+    def test_real_second_signature_preserves_first(self):
+        first, second = self.root / "first.pdf", self.root / "second.pdf"
+        signpdf.write_signed_pdf(self.source, first, signpdf.Placement("Signature1", False), self.signer)
+        signpdf.write_signed_pdf(first, second, signpdf.Placement("Signature2", False), self.signer)
+        signpdf.check_original_prefix(first, second)
+        expected = {"Signature1", "Signature2"}
+        self.assertEqual(signpdf.verify_pdf(second, expected, "Signature2"), expected)
+
+    def test_tampered_signature_is_rejected(self):
+        output = self.root / "signed.pdf"
+        signpdf.write_signed_pdf(self.source, output, signpdf.Placement("Signature1", False), self.signer)
+        data = output.read_bytes()
+        self.assertIn(b"/MediaBox", data)
+        output.write_bytes(data.replace(b"/MediaBox", b"/MediaBax", 1))
+        with self.assertRaises(Exception):
+            signpdf.verify_pdf(output)
+
+    def test_full_document_pipeline_preserves_input_and_adds_two_signatures(self):
+        original = self.source.read_bytes()
+        def synthetic_card_sign(source, staged, placement, *unused):
+            signpdf.write_signed_pdf(source, staged, placement, self.signer)
+        with patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "authenticate_and_sign", side_effect=synthetic_card_sign), \
+             redirect_stdout(io.StringIO()):
+            self.assertEqual(signpdf.execute(self.args("--invisible")), 0)
+            first = self.root / "document.signed.pdf"
+            second = self.root / "both.pdf"
+            args = signpdf.parser().parse_args([str(first), "--invisible", "-o", str(second)])
+            self.assertEqual(signpdf.execute(args), 0)
+        self.assertEqual(self.source.read_bytes(), original)
+        self.assertEqual(signpdf.verify_pdf(second), {"Signature1", "Signature2"})
+        self.assertEqual(stat.S_IMODE(second.stat().st_mode), 0o600)
+        self.assertEqual(list(self.root.glob(".signpdf.*")), [])
+
+    def test_certified_document_rejects_signing_before_authentication(self):
+        from pyhanko.pdf_utils.incremental_writer import IncrementalPdfFileWriter
+        from pyhanko.sign.fields import MDPPerm, SigSeedSubFilter
+        from pyhanko.sign.signers import PdfSignatureMetadata, PdfSigner
+        certified = self.root / "certified.pdf"
+        metadata = PdfSignatureMetadata(field_name="Certification", certify=True,
+                                        docmdp_permissions=MDPPerm.NO_CHANGES,
+                                        subfilter=SigSeedSubFilter.PADES)
+        with self.source.open("rb") as incoming, certified.open("wb") as outgoing:
+            PdfSigner(metadata, signer=self.signer).sign_pdf(
+                IncrementalPdfFileWriter(incoming), output=outgoing)
+        args = signpdf.parser().parse_args([str(certified), "--invisible"])
+        with patch.object(signpdf, "authenticate_and_sign") as auth:
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.execute(args)
+        auth.assert_not_called()
+
+    def test_worker_uses_configured_objects_and_consumes_pin_environment(self):
+        import pkcs11
+        settings = dict(module="synthetic-module", token="SYNTHETIC_TOKEN", key_id="0102",
+                        cert_id="0304", raw_mechanism=False)
+        request = self.root / "request.json"
+        request.write_text(json.dumps(dict(settings=settings, source=str(self.source),
+                                          output=str(self.root / "signed.pdf"),
+                                          placement=dict(field="Signature1", existing=False))))
+        with patch.dict(os.environ, {signpdf.PIN_ENV: "SYNTHETIC_TEST_PIN"}, clear=True), \
+             patch.object(pkcs11, "lib") as library, \
+             patch("pyhanko.sign.pkcs11.PKCS11Signer") as signer_factory, \
+             patch.object(signpdf, "write_signed_pdf") as write:
+            token = library.return_value.get_tokens.return_value = [unittest.mock.MagicMock()]
+            library.side_effect = lambda *args: (
+                self.assertNotIn(signpdf.PIN_ENV, os.environ) or library.return_value)
+            self.assertEqual(signpdf.worker(request), 0)
+            token[0].open.assert_called_once_with(user_pin="SYNTHETIC_TEST_PIN")
+            self.assertEqual(signer_factory.call_args.kwargs["key_id"], b"\x01\x02")
+            self.assertEqual(signer_factory.call_args.kwargs["cert_id"], b"\x03\x04")
+            write.assert_called_once()
+
+    def test_worker_rejects_unresolved_reference_before_loading_module(self):
+        with patch.dict(os.environ, {signpdf.PIN_ENV: "op://TEST_VAULT/TEST_ITEM/TEST_FIELD"}, clear=True):
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.worker(self.root / "missing-request.json")
+            self.assertNotIn(signpdf.PIN_ENV, os.environ)
+
+
+if __name__ == "__main__":
+    unittest.main()

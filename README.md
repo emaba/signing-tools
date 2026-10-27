@@ -19,6 +19,15 @@ Directories and symbolic links cannot be output targets. The function refuses
 to overwrite the input itself, including hard links and directory aliases.
 The filename does not enforce a `.pdf` input or `.p7m` output extension.
 
+## PAdES signatures inside a PDF
+
+The companion [signpdf command](docs/signpdf.md) creates a signed PDF with an
+existing signature field, an invisible signature, or a visible rectangle
+specified in millimetres. It uses a dedicated Python environment and the same
+SafeDive/1Password setup. Hardware acceptance with SafeDive is still pending;
+it does not change macOS reader preferences. See the guide for installation,
+verification limits, and multiple signatures.
+
 ## Provenance and verification status
 
 The starting implementation is the locally installed `signp7m.fish` associated

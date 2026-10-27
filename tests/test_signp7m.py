@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import stat
 import subprocess
 import sys
@@ -106,7 +107,12 @@ class SignP7mTests(unittest.TestCase):
         self.log = self.root / "calls.jsonl"
         for name in ("brew", "op", "openssl", "pkcs11-tool"):
             executable = self.bin / name
-            executable.write_text(f"#!{sys.executable}\n" + SUBSTITUTE)
+            # A shebang cannot represent interpreter paths containing spaces.
+            code = "import sys\nsys.argv = sys.argv[1:]\n" + SUBSTITUTE
+            executable.write_text(
+                "#!/bin/sh\nexec " + shlex.quote(sys.executable) + " -c "
+                + shlex.quote(code) + ' "$0" "$@"\n'
+            )
             executable.chmod(0o700)
         self.env = {
             "PATH": f"{self.bin}:/usr/bin:/bin",

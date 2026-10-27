@@ -29,3 +29,5 @@ signp7m.local.fish
 __pycache__/
 *.pyc
 .venv/
+.venv-signpdf/
+.signpdf.*/

@@ -48,6 +48,27 @@
   does not prove full CAdES compliance. No revocation, timestamp, or legal
   qualification assessment is performed.
 
+## Companion PAdES command
+
+`signpdf` uses a separate PKCS#11 signing worker. Only that worker receives
+the resolved PIN from `op run`; it removes the PIN environment variable before
+opening the token session. The temporary JSON request contains public signing
+selectors and paths, not a PIN or secret reference. Python does not guarantee
+erasure of secret strings from memory. No PIN is accepted as a command-line
+argument or stored in a file by this implementation.
+
+The private workspace also contains a snapshot of the input PDF. Its mode is
+`700`, its snapshot/request files are mode `600`, and the final output is mode
+`600`. Temporary `.signpdf.*` directories have the same crash/secure-erasure
+limitations as the CAdES workspace. Existing outputs are preserved on normal
+signing or verification failure. New output creation refuses a concurrently
+created target; replacement checks do not eliminate all same-user races.
+
+The PAdES checks assess cryptographic integrity, permitted incremental changes,
+and selected structural properties. They do not establish signer trust,
+revocation, trusted time, full profile conformance, or legal qualification.
+See [the PAdES guide](docs/signpdf.md) for supported and unsupported cases.
+
 ## Reporting a problem
 
 Report security issues privately to the repository owner. Do not attach real

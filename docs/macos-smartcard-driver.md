@@ -7,6 +7,12 @@ allowed two consecutive signing operations to succeed with a Generic EMV
 reader that had repeatedly failed with Apple's `usbsmartcardreaderd` driver.
 The owner reported leaving the preference enabled.
 
+On October 28, the owner rolled the change back: deleting the domain left an
+empty 42-byte plist, which was then moved to
+`com.apple.security.smartcard.plist.disabled-20261028` in the same directory.
+The owner confirmed that the active `.plist` path was absent. A post-reboot
+check and accessory-authorization test have not yet been reported.
+
 This is a recorded workstation configuration change, not an installation step
 required by `signp7m`. The function does not apply this setting automatically.
 
