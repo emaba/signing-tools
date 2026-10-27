@@ -1,0 +1,31 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+config.local.fish
+signp7m.local.fish
+*.local.fish
+*credentials*
+*secrets*
+
+# Documents, signatures, certificates, and key material
+*.pdf
+*.p7m
+*.pem
+*.der
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.log
+.signp7m.*/
+
+# Editor and operating-system files
+.DS_Store
+*.swp
+*.swo
+*~
+__pycache__/
+*.pyc
+.venv/
