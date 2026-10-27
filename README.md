@@ -227,6 +227,13 @@ Cancellation prints `Operation cancelled.` and produces no new output.
 
 ## Troubleshooting
 
+- **Generic EMV / Alcor AU9540 reader stalls during signing:** see the
+  [macOS reader driver workaround](docs/macos-smartcard-driver.md) for the
+  October 27, 2026 incident, the system-wide `useIFDCCID` preference, two
+  successful signing runs, compatibility limits, accessory-authorization
+  implications on supported Macs, and rollback checks.
+  Apply this only when troubleshooting the affected setup; it is not a
+  general installation requirement.
 - **Missing dependency/provider:** check Homebrew paths, the executable selected
   by `command -s openssl`, and `pkcs11prov.dylib`'s linked OpenSSL version.
 - **Module cannot load:** check the installed SafeDive path and CPU architecture.
