@@ -240,6 +240,87 @@ class PDFCase(PDFTestBase):
         self.assertNotIn("SYNTHETIC_DO_NOT_DISPLAY", output.getvalue())
 
 
+class ReferenceTests(unittest.TestCase):
+    def test_named_references_with_spaces_and_optional_section(self):
+        for reference in ("op://Test Vault/Test Item/password",
+                          "op://Test Vault/Test Item/Test Section/password"):
+            self.assertTrue(signpdf.valid_reference(reference))
+
+    def test_invalid_references_are_rejected(self):
+        for reference in ("", "synthetic literal value", "op://a/b", "op://a//b",
+                          "op://a/b/c/d/e", "op://a/b/c\n", "op://a/b/c\x00"):
+            with self.subTest(reference=reference):
+                self.assertFalse(signpdf.valid_reference(reference))
+
+    def test_legacy_reference_is_read_without_executing_fish(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "signp7m.fish"
+            path.write_text("function signp7m\n"
+                            "    set -lx PKCS11_PIN 'op://Test Vault/Test Item/password'\n"
+                            "    touch SHOULD_NEVER_BE_EXECUTED\n"
+                            "    set -e PKCS11_PIN\nend\n")
+            with patch.object(signpdf.subprocess, "run") as run:
+                self.assertEqual(signpdf.legacy_pin_reference(path),
+                                 "op://Test Vault/Test Item/password")
+            run.assert_not_called()
+            self.assertFalse((Path(directory) / "SHOULD_NEVER_BE_EXECUTED").exists())
+
+    def test_ambiguous_or_expanded_legacy_assignments_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "signp7m.fish"
+            for content in (
+                "set -lx PKCS11_PIN 'op://A/B/C'\nset -lx PKCS11_PIN 'op://D/E/F'\n",
+                "set -lx PKCS11_PIN 'op://A/B/C'\nset -lx PKCS11_PIN '$reference'\n",
+                "set -lx PKCS11_PIN (op read 'op://A/B/C')\n",
+                "# set -lx PKCS11_PIN 'op://A/B/C'\n",
+            ):
+                path.write_text(content)
+                self.assertEqual(signpdf.legacy_pin_reference(path), "")
+
+    def test_legacy_scalar_alias_and_cycles(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "signp7m.fish"
+            path.write_text("set -l onepassword_pin_ref 'op://Test Vault/Test Item/password'\n"
+                            'set -lx PKCS11_PIN "$onepassword_pin_ref"\n'
+                            "set -e PKCS11_PIN\n")
+            self.assertEqual(signpdf.legacy_pin_reference(path), "op://Test Vault/Test Item/password")
+            path.write_text('set -l reference "$PKCS11_PIN"\nset -lx PKCS11_PIN "$reference"\n')
+            self.assertEqual(signpdf.legacy_pin_reference(path), "")
+            path.write_text("set -l reference 'op://Test Vault/Item/password'\n"
+                            "set -lx PKCS11_PIN '$reference'\n")
+            self.assertEqual(signpdf.legacy_pin_reference(path), "")
+
+    def test_explicit_reference_takes_precedence(self):
+        with patch.dict(os.environ, {"SIGNPDF_PIN_REF": "op://Explicit Vault/Item/password"}, clear=True), \
+             patch.object(signpdf, "legacy_pin_reference") as legacy, \
+             patch.object(Path, "is_file", return_value=True), \
+             patch.object(signpdf.shutil, "which", return_value="/synthetic/op"):
+            self.assertEqual(signpdf.signing_settings()["reference"], "op://Explicit Vault/Item/password")
+        legacy.assert_not_called()
+
+    def test_missing_environment_reference_uses_legacy_reference(self):
+        with patch.dict(os.environ, {}, clear=True), \
+             patch.object(signpdf, "legacy_pin_reference", return_value="op://Test Vault/Item/password"), \
+             patch.object(Path, "is_file", return_value=True), \
+             patch.object(signpdf.shutil, "which", return_value="/synthetic/op"):
+            self.assertEqual(signpdf.signing_settings()["reference"], "op://Test Vault/Item/password")
+
+    def test_unrelated_references_are_not_resolved_by_op_run(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = dict(reference="op://PIN Vault/Item/password")
+            with patch.dict(os.environ, {"UNRELATED_REF": "op://Other/Item/password",
+                                         "SIGNPDF_PIN_REF": settings["reference"]}, clear=True), \
+                 patch.object(signpdf.subprocess, "run") as run:
+                run.return_value.returncode = 0
+                signpdf.authenticate_and_sign(root / "input.pdf", root / "output.pdf",
+                                              signpdf.Placement("Signature1", False), settings, root)
+            env = run.call_args.kwargs["env"]
+            self.assertNotIn("UNRELATED_REF", env)
+            self.assertNotIn("SIGNPDF_PIN_REF", env)
+            self.assertEqual(env[signpdf.PIN_ENV], settings["reference"])
+
+
 @unittest.skipUnless(pypdf and importlib.util.find_spec("pyhanko"), "pyHanko required for real cryptographic PDF tests")
 class CryptographicPDFTests(PDFTestBase):
     """Generate synthetic signing material in memory; never load user credentials."""

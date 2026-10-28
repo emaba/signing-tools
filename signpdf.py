@@ -13,6 +13,7 @@ import math
 import os
 from pathlib import Path
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -207,10 +208,62 @@ def output_path(source: Path, requested: Path | None) -> Path:
     return destination
 
 
+def valid_reference(value: str) -> bool:
+    # Named vaults/items can contain spaces; a section is optional.
+    component = r"[^/\x00-\x1f\x7f]+"
+    return re.fullmatch(rf"op://{component}/{component}/{component}(?:/{component})?", value) is not None
+
+
+def legacy_pin_reference(path: Path | None = None) -> str:
+    """Read one literal PIN reference without executing the installed function."""
+    path = path or Path.home() / ".config/fish/functions/signp7m.fish"
+    if not path.is_file():
+        return ""
+    assignments: dict[str, set[str | None]] = {}
+    allowed_flags = {"-l", "-x", "-g", "-f", "-lx", "-xl", "-gx", "-xg",
+                     "--local", "--export", "--global", "--function"}
+    for line in path.read_text().splitlines():
+        try:
+            words = shlex.split(line, comments=True, posix=True)
+        except ValueError:
+            continue
+        if not words or words[0] != "set":
+            continue
+        if any(flag in words[1:] for flag in ("-e", "--erase", "-q", "--query")):
+            continue
+        index = 1
+        while index < len(words) and words[index].startswith("-"):
+            index += 1
+        if index >= len(words) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", words[index]):
+            continue
+        name, values = words[index], words[index + 1:]
+        value = values[0] if len(values) == 1 and set(words[1:index]) <= allowed_flags else None
+        if value is not None and value.startswith("$"):
+            alias_syntax = r'(?:^|\s)(?:"\$[A-Za-z_][A-Za-z0-9_]*"|\$[A-Za-z_][A-Za-z0-9_]*)\s*(?:#.*)?$'
+            if not re.search(alias_syntax, line):
+                value = None
+        assignments.setdefault(name, set()).add(value)
+
+    def resolve(name, seen):
+        if name in seen or len(assignments.get(name, ())) != 1:
+            return ""
+        value = next(iter(assignments[name]))
+        if value is None:
+            return ""
+        if re.fullmatch(r"\$[A-Za-z_][A-Za-z0-9_]*", value):
+            return resolve(value[1:], seen | {name})
+        return value if "$" not in value and valid_reference(value) else ""
+
+    # Follow only unambiguous scalar aliases; never execute or expand Fish code.
+    return resolve("PKCS11_PIN", set())
+
+
 def signing_settings() -> dict:
     env = os.environ
     reference = env.get("SIGNPDF_PIN_REF", env.get("SIGNP7M_PIN_REF", ""))
-    if not re.fullmatch(r"op://[^/\s]+/[^/\s]+/[^/\s]+", reference):
+    if not reference:
+        reference = legacy_pin_reference()
+    if not valid_reference(reference):
         raise SignPDFError("set SIGNPDF_PIN_REF or SIGNP7M_PIN_REF to a 1Password secret reference")
     module = env.get("SIGNPDF_MODULE", env.get("SIGNP7M_MODULE", MODULE))
     if not Path(module).is_file():
@@ -359,7 +412,9 @@ def authenticate_and_sign(source, staged, placement, settings, directory):
     request.write_text(json.dumps(dict(source=str(source), output=str(staged),
                                       placement=asdict(placement), settings=public_settings)))
     request.chmod(0o600)
-    env = dict(os.environ)
+    # op run resolves every reference in its environment. Supply only this one,
+    # avoiding duplicate PIN copies or resolution of unrelated references.
+    env = {key: value for key, value in os.environ.items() if not value.startswith("op://")}
     env[PIN_ENV] = settings["reference"]
     result = subprocess.run(
         ["op", "run", "--", sys.executable, str(Path(__file__).resolve()),

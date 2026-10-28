@@ -23,7 +23,7 @@ The successful `signp7m` runs do not prove compatibility with this new
 PKCS#11 client. This program never changes macOS reader preferences. Use the
 known-working Gemplus reader for the initial hardware acceptance test.
 
-On October 28, 2026, all 48 automated tests passed using Python 3.12.16.
+On October 28, 2026, all 56 automated tests passed using Python 3.12.16.
 This includes the existing CAdES tests, synthetic cryptographic PDF tests,
 and a PKCS#11 adapter test using substitutes. Visible appearances were also
 rendered and reviewed at page rotations 0, 90, 180, and 270 degrees. The
@@ -56,7 +56,7 @@ required by this function. The CAdES `signp7m` function is unchanged.
 
 | Variable | Default / fallback | Purpose |
 | --- | --- | --- |
-| `SIGNPDF_PIN_REF` | `SIGNP7M_PIN_REF`; required | 1Password `op://VAULT_ID/ITEM_ID/FIELD_ID` reference |
+| `SIGNPDF_PIN_REF` | `SIGNP7M_PIN_REF`, then the legacy installed function | 1Password `op://VAULT_ID/ITEM_ID/FIELD_ID` reference |
 | `SIGNPDF_MODULE` | `SIGNP7M_MODULE`, then the standard SafeDive module | PKCS#11 library |
 | `SIGNPDF_TOKEN_LABEL` | `CNS` | Exactly one token must match |
 | `SIGNPDF_KEY_ID` | `SIGNP7M_KEY_ID`, then `445334` | Private key object ID in hexadecimal |
@@ -64,6 +64,17 @@ required by this function. The CAdES `signp7m` function is unchanged.
 | `SIGNPDF_RAW_MECHANISM` | `0` | Set `1` only if separate hashing/signing is required |
 | `SIGNPDF_HOME` | Required by Fish wrapper | Absolute checkout directory |
 | `SIGNPDF_PYTHON` | Required by Fish wrapper | Dedicated Python executable |
+
+If neither reference variable is configured, `signpdf` reads only scalar
+assignments from `~/.config/fish/functions/signp7m.fish` to find the historical
+`PKCS11_PIN` reference, including an unambiguous local variable alias. It does
+not execute, source, or modify that function. Ambiguous assignments, cycles,
+and computed values are rejected. The reference is not printed or copied into
+the repository. Explicit environment configuration takes precedence.
+
+Vault, item, and section names can contain spaces; optional section paths are
+supported. Use the reference exactly as copied from 1Password. It identifies
+the PIN field; it is not the PIN value.
 
 `SIGNP7M_SLOT` and `SIGNP7M_KEY_URI` are not reused: selection conventions
 differ between clients. Configure explicit token and object IDs for another
@@ -76,6 +87,9 @@ ambiguous labels. The default module is:
 
 `op run` resolves the reference into a worker environment variable. The worker
 consumes the PIN and removes that variable before opening the token session.
+Other `op://` environment values are omitted from this `op run` invocation to
+avoid resolving unrelated secrets or duplicating the PIN in configuration
+variables passed to the worker.
 Neither the PIN nor its reference is written to the temporary request file.
 The parent sees only the reference. Python strings and vendor libraries do
 not guarantee PIN erasure from process memory. There is no automatic PIN

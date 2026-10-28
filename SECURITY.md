@@ -57,6 +57,12 @@ selectors and paths, not a PIN or secret reference. Python does not guarantee
 erasure of secret strings from memory. No PIN is accepted as a command-line
 argument or stored in a file by this implementation.
 
+When no reference environment variable is configured, the program can reuse
+one unambiguous literal reference from the installed legacy Fish function,
+following scalar aliases without executing Fish. It never resolves the PIN
+during configuration discovery. Other reference-valued environment variables
+are omitted from the `op run` child to avoid unrelated secret resolution.
+
 The private workspace also contains a snapshot of the input PDF. Its mode is
 `700`, its snapshot/request files are mode `600`, and the final output is mode
 `600`. Temporary `.signpdf.*` directories have the same crash/secure-erasure
