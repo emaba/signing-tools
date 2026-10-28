@@ -24,8 +24,9 @@ The filename does not enforce a `.pdf` input or `.p7m` output extension.
 The companion [signpdf command](docs/signpdf.md) creates a signed PDF with an
 existing signature field, an invisible signature, or a visible rectangle
 specified in millimetres. It uses a dedicated Python environment and the same
-SafeDive/1Password setup. One real invisible-signature run has passed; the
-remaining placement and multi-signature hardware tests are pending. The command
+SafeDive/1Password setup. Real invisible, visible, and sequential two-signature
+runs have passed local checks. Existing-field hardware acceptance and the owner's
+visual review remain pending. The command
 does not change macOS reader preferences. See the guide for installation,
 verification limits, and multiple signatures.
 

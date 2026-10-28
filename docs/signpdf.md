@@ -26,11 +26,18 @@ of the original bytes, and mode `600`. No PIN or certificate details were
 displayed or added to the repository. The reader model is not identified in
 that command's output.
 
-This validates one real invisible-signature run. Visible placement, a second
-signature, and existing-field signing still need hardware acceptance. Trust,
-revocation, and trusted timestamps remain unvalidated. This program never
-changes macOS reader preferences. Use the known-working Gemplus reader for
-the remaining hardware tests.
+The owner subsequently completed a visible-signature run and added an invisible
+second signature to that signed PDF. Read-only checks confirmed one signature
+and one visible widget in the first result, then two signatures and one visible
+widget in the second. Both results preserved the preceding PDF bytes and had
+mode `600`. All local cryptographic and permitted-change checks passed.
+
+Real invisible, visible, and sequential signing have therefore passed these
+acceptance runs. Visual placement/legibility has not been confirmed by the
+owner, and existing-field signing still needs a real hardware test. Trust,
+revocation, and trusted timestamps remain unvalidated. These results do not
+establish compatibility with every reader, PDF, or middleware version. This
+program never changes macOS reader preferences.
 
 On October 28, 2026, all 56 automated tests passed using Python 3.12.16.
 This includes the existing CAdES tests, synthetic cryptographic PDF tests,
