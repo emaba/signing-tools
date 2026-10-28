@@ -18,10 +18,19 @@ existing field, sequential signatures, certification locks, and tampering
 rejection. The PKCS#11 adapter is tested with substitutes for the token and
 middleware.
 
-Hardware signing with SafeDive and the owner's JSafe card remains unvalidated.
-The successful `signp7m` runs do not prove compatibility with this new
-PKCS#11 client. This program never changes macOS reader preferences. Use the
-known-working Gemplus reader for the initial hardware acceptance test.
+On October 28, 2026, the owner reported a successful invisible signature using
+the installed smart-card setup and 1Password. The command passed cryptographic
+integrity, prior-signature/permitted-change checks, and PAdES structural checks.
+A read-only check of the resulting PDF confirmed one signature, preservation
+of the original bytes, and mode `600`. No PIN or certificate details were
+displayed or added to the repository. The reader model is not identified in
+that command's output.
+
+This validates one real invisible-signature run. Visible placement, a second
+signature, and existing-field signing still need hardware acceptance. Trust,
+revocation, and trusted timestamps remain unvalidated. This program never
+changes macOS reader preferences. Use the known-working Gemplus reader for
+the remaining hardware tests.
 
 On October 28, 2026, all 56 automated tests passed using Python 3.12.16.
 This includes the existing CAdES tests, synthetic cryptographic PDF tests,
