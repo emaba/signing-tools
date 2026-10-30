@@ -13,6 +13,13 @@ empty 42-byte plist, which was then moved to
 The owner confirmed that the active `.plist` path was absent. A post-reboot
 check and accessory-authorization test have not yet been reported.
 
+On October 30, a read-only check again found no active preference file and no
+`useIFDCCID` override; the disabled backup remained present. The owner then
+confirmed that the newly purchased reader worked. This is owner-reported
+functional evidence without the configured workaround. The reader model,
+loaded driver, post-reboot state, and long-term reliability were not captured
+in that confirmation. The workaround was not re-enabled.
+
 This is a recorded workstation configuration change, not an installation step
 required by `signp7m`. The function does not apply this setting automatically.
 

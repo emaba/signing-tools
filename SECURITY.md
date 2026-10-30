@@ -75,6 +75,11 @@ and selected structural properties. They do not establish signer trust,
 revocation, trusted time, full profile conformance, or legal qualification.
 See [the PAdES guide](docs/signpdf.md) for supported and unsupported cases.
 
+Visible split-column names come from the signing certificate. The displayed
+date/time matches the local PDF signing time; it is not a trusted timestamp.
+The optional signing location is user-declared. The cursive name is typeset
+text and is not an independently authenticated handwritten signature.
+
 ## Reporting a problem
 
 Report security issues privately to the repository owner. Do not attach real

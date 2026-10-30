@@ -17,6 +17,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 import signpdf
+import signpdf_appearance
 
 try:
     import pypdf
@@ -31,6 +32,43 @@ class PDFTestBase(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.source = self.root / "document.pdf"
         self.create_pdf(self.source)
+
+    def split_appearance(self, *options, units_per_em=1000):
+        # Build a redistributable test font; never depend on proprietary fonts in CI.
+        from fontTools.fontBuilder import FontBuilder
+        from fontTools.pens.ttGlyphPen import TTGlyphPen
+        path = self.root / "synthetic-font.ttf"
+        builder = FontBuilder(1000, isTTF=True)
+        cmap = {n: f"char{n}" for n in range(32, 256)}
+        names = [".notdef", *cmap.values()]
+        builder.setupGlyphOrder(names)
+        builder.setupCharacterMap(cmap)
+        glyphs = {}
+        for name in names:
+            pen = TTGlyphPen(None)
+            if name != "char32":
+                pen.moveTo((30, -180))
+                pen.lineTo((530, -180))
+                pen.lineTo((530, 760))
+                pen.lineTo((30, 760))
+                pen.closePath()
+            glyphs[name] = pen.glyph()
+        builder.setupGlyf(glyphs)
+        builder.setupHorizontalMetrics({name: (600, 30) for name in names})
+        builder.setupHorizontalHeader(ascent=850, descent=-200)
+        builder.setupNameTable({"familyName": "Synthetic Test", "styleName": "Regular",
+                               "uniqueFontIdentifier": "SyntheticTest-Regular",
+                               "fullName": "Synthetic Test Regular", "psName": "SyntheticTest-Regular"})
+        builder.setupOS2(sTypoAscender=850, sTypoDescender=-200, usWinAscent=850, usWinDescent=200, fsType=0)
+        builder.setupPost()
+        if units_per_em != 1000:
+            from fontTools.ttLib.scaleUpem import scale_upem
+            scale_upem(builder.font, units_per_em)
+        builder.save(path)
+        args = signpdf.parser().parse_args([str(self.source), "--rect-mm", "10,10,95,25",
+                                           "--appearance", "split", "--script-font", str(path),
+                                           "--text-font", str(path), *options])
+        return signpdf_appearance.appearance_settings(args)
 
     def create_pdf(self, path, *, rotation=0, crop=None, unit=1, field=None, signed=False):
         from pypdf import PdfWriter
@@ -240,6 +278,58 @@ class PDFCase(PDFTestBase):
         self.assertNotIn("SYNTHETIC_DO_NOT_DISPLAY", output.getvalue())
 
 
+@unittest.skipUnless(pypdf and importlib.util.find_spec("fontTools"), "fontTools required for appearance tests")
+class AppearanceTests(PDFTestBase):
+    def test_rejects_invalid_appearance_options_before_authentication(self):
+        for options in (("--invisible", "--appearance", "split"),
+                        ("--list-fields", "--location", "Genova"),
+                        ("--invisible", "--script-font", "unused.ttf"),
+                        ("--invisible", "--location", "Genova\nHidden line"),
+                        ("--invisible", "--location", "\u202eGenova"),
+                        ("--invisible", "--location", " " )):
+            args = signpdf.parser().parse_args([str(self.source), *options])
+            with self.subTest(options=options), patch.object(signpdf, "authenticate_and_sign") as auth:
+                with self.assertRaises(signpdf_appearance.AppearanceError):
+                    signpdf.execute(args)
+                auth.assert_not_called()
+
+    def test_missing_font_is_rejected(self):
+        args = signpdf.parser().parse_args([str(self.source), "--rect-mm", "0,0,95,25",
+                                           "--appearance", "split", "--script-font", str(self.root / "absent.ttf")])
+        with self.assertRaises(signpdf_appearance.AppearanceError):
+            signpdf_appearance.appearance_settings(args)
+
+    def test_embedding_restrictions_are_respected(self):
+        from fontTools.ttLib import TTFont
+        settings = self.split_appearance()
+        path = Path(settings["script_font"])
+        for flags in (2, 4, 0x100, 0x200):
+            with TTFont(path) as font:
+                font["OS/2"].fsType = flags
+                font.save(path)
+            with self.subTest(flags=flags), self.assertRaises(signpdf_appearance.AppearanceError):
+                signpdf_appearance.check_font(path)
+
+    def test_2048_unit_fonts_have_pdf_compatible_metrics(self):
+        from pyhanko.pdf_utils.writer import PdfFileWriter
+        settings = self.split_appearance(units_per_em=2048)
+        engine = signpdf_appearance._font_engine(PdfFileWriter(), settings["text_font"], 34)
+        self.assertEqual(engine.tt["head"].unitsPerEm, 2048)
+        self.assertEqual(engine.units_per_em, 1000)
+        self.assertAlmostEqual(engine.shape("AB").x_advance, 1.2, places=3)
+        self.assertTrue(all(abs(width - 600) <= 1 for _, width in engine._glyphs.values()))
+
+    def test_certificate_names_use_given_name_and_surname_before_common_name(self):
+        signer = unittest.mock.MagicMock()
+        signer.signing_cert.subject.native = dict(given_name="Emilia", surname="Rossi", common_name="OTHER VALUE")
+        self.assertEqual(signpdf_appearance.certificate_name(signer), "Emilia Rossi")
+        signer.signing_cert.subject.native = dict(common_name="Émilie Rossi")
+        self.assertEqual(signpdf_appearance.certificate_name(signer), "Émilie Rossi")
+        signer.signing_cert = None
+        with self.assertRaises(signpdf_appearance.AppearanceError):
+            signpdf_appearance.certificate_name(signer)
+
+
 class ReferenceTests(unittest.TestCase):
     def test_named_references_with_spaces_and_optional_section(self):
         for reference in ("op://Test Vault/Test Item/password",
@@ -357,6 +447,58 @@ class CryptographicPDFTests(PDFTestBase):
         signpdf.write_signed_pdf(self.source, output, signpdf.Placement("Signature1", False), self.signer)
         signpdf.check_original_prefix(self.source, output)
         self.assertEqual(signpdf.verify_pdf(output, {"Signature1"}, "Signature1"), {"Signature1"})
+
+    def test_split_appearance_embeds_fonts_and_matches_signature_metadata(self):
+        from pypdf.generic import ContentStream
+        settings = self.split_appearance("--location", "Genova")
+        placement = signpdf.Placement("Signature1", False, box=(20, 20, 300, 100), appearance=settings)
+        output = self.root / "split.pdf"
+        signpdf.write_signed_pdf(self.source, output, placement, self.signer)
+        signpdf.verify_pdf(output, {"Signature1"}, "Signature1")
+        reader = signpdf.pdf_reader(output)
+        field = signpdf.signature_fields(reader)["Signature1"].indirect_reference.get_object()
+        signature = field["/V"].get_object()
+        self.assertEqual(signature["/Location"], "Genova")
+        appearance = field["/AP"]["/N"].get_object()
+        lines = [str(operands[1]["/ActualText"]) for operands, operator in ContentStream(appearance, reader).operations
+                 if operator == b"BDC" and len(operands) == 2 and "/ActualText" in operands[1]]
+        self.assertIn("Synthetic PDF Test Signer", lines)
+        self.assertIn("da: SYNTHETIC PDF TEST SIGNER", lines)
+        self.assertIn("Luogo: Genova", lines)
+        stamp = datetime.strptime(str(signature["/M"])[2:16], "%Y%m%d%H%M%S")
+        self.assertIn("Data: " + stamp.strftime("%d/%m/%Y"), lines)
+        self.assertIn(stamp.strftime("%H:%M:%S"), lines)
+        fonts = appearance["/Resources"]["/Font"]
+        self.assertEqual(len(fonts), 2)
+        for font in fonts.values():
+            descriptor = font.get_object()["/DescendantFonts"][0].get_object()["/FontDescriptor"]
+            self.assertIn("/FontFile2", descriptor)
+
+    def test_split_second_signature_preserves_first_at_all_rotations(self):
+        settings = self.split_appearance("--appearance-language", "en")
+        for rotation in (0, 90, 180, 270):
+            with self.subTest(rotation=rotation):
+                self.create_pdf(self.source, rotation=rotation, crop=(10, 20, 510, 720))
+                first, second = self.root / "first.pdf", self.root / "second.pdf"
+                signpdf.write_signed_pdf(self.source, first, signpdf.Placement("First", False), self.signer)
+                placement = signpdf.choose_placement(self.args("--rect-mm", "10,15,95,25"),
+                                                      signpdf.pdf_reader(first))
+                from dataclasses import replace
+                placement = replace(placement, appearance=settings)
+                signpdf.write_signed_pdf(first, second, placement, self.signer)
+                signpdf.check_original_prefix(first, second)
+                self.assertEqual(signpdf.verify_pdf(second), {"First", placement.field})
+                field = signpdf.signature_fields(signpdf.pdf_reader(second))[placement.field]
+                matrix = field.indirect_reference.get_object()["/AP"]["/N"]["/Matrix"]
+                self.assertEqual(list(matrix)[:4], {0: [1, 0, 0, 1], 90: [0, 1, -1, 0],
+                                                  180: [-1, 0, 0, -1], 270: [0, -1, 1, 0]}[rotation])
+
+    def test_split_missing_glyph_never_produces_a_valid_output(self):
+        settings = self.split_appearance("--location", "東京")
+        output = self.root / "bad-font.pdf"
+        placement = signpdf.Placement("First", False, box=(20, 20, 300, 100), appearance=settings)
+        with self.assertRaises(signpdf_appearance.AppearanceError):
+            signpdf.write_signed_pdf(self.source, output, placement, self.signer)
 
     def test_real_visible_signature_on_rotated_cropped_page(self):
         self.create_pdf(self.source, rotation=90, crop=(10, 20, 510, 720))

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 import importlib.metadata
 import json
 import logging
@@ -19,6 +19,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+
+from signpdf_appearance import AppearanceError, appearance_settings, certificate_name, split_style
 
 
 MODULE = (
@@ -40,6 +42,7 @@ class Placement:
     page: int = 0
     box: tuple[float, float, float, float] | None = None
     rotation: int = 0
+    appearance: dict | None = None
 
 
 def rectangle(value: str) -> tuple[float, float, float, float]:
@@ -66,6 +69,13 @@ def parser() -> argparse.ArgumentParser:
                       help="visible rectangle in mm from the displayed page's top-left corner")
     p.add_argument("--page", help="page number starting at 1, or 'last' (default for --rect-mm)")
     p.add_argument("--name", help="name for a new signature field (default: first unused SignatureN)")
+    p.add_argument("--appearance", choices=("simple", "split"), default="simple",
+                   help="visible style: simple text or cursive name with a details column")
+    p.add_argument("--location", help="declared signing location; stored in signature metadata")
+    p.add_argument("--appearance-language", choices=("it", "en"), default="it",
+                   help="labels for split appearances (default: it)")
+    p.add_argument("--script-font", type=Path, help="standalone TTF/OTF for the cursive name")
+    p.add_argument("--text-font", type=Path, help="standalone TTF/OTF for split-appearance details")
     return p
 
 
@@ -331,8 +341,10 @@ def verify_pdf(path: Path, expected_names: set[str] | None = None,
         return names
 
 
-def appearance_style(rotation: int):
+def appearance_style(rotation: int, settings: dict | None = None):
     """Keep the appearance upright in the displayed page without moving its box."""
+    if settings and settings.get("style") == "split":
+        return split_style(rotation, settings)
     from pyhanko.pdf_utils import generic
     from pyhanko.pdf_utils.layout import BoxConstraints
     from pyhanko.pdf_utils.text import TextBoxStyle
@@ -365,15 +377,18 @@ def write_signed_pdf(source: Path, destination: Path, placement: Placement, sign
     from pyhanko.sign.fields import SigFieldSpec, SigSeedSubFilter
     from pyhanko.sign.signers import PdfSignatureMetadata, PdfSigner
 
+    settings = placement.appearance or {}
+    text_params = ({"certificate_name": certificate_name(signer)}
+                   if settings.get("style") == "split" else None)
     metadata = PdfSignatureMetadata(field_name=placement.field, md_algorithm="sha256",
-                                    subfilter=SigSeedSubFilter.PADES)
+                                    subfilter=SigSeedSubFilter.PADES, location=settings.get("location"))
     field = None if placement.existing else SigFieldSpec(
         sig_field_name=placement.field, on_page=placement.page, box=placement.box)
     with source.open("rb") as incoming, destination.open("wb") as outgoing:
         PdfSigner(metadata, signer=signer, new_field_spec=field,
-                  stamp_style=appearance_style(placement.rotation)).sign_pdf(
+                  stamp_style=appearance_style(placement.rotation, settings)).sign_pdf(
             IncrementalPdfFileWriter(incoming), existing_fields_only=placement.existing,
-            output=outgoing,
+            output=outgoing, appearance_text_params=text_params,
         )
 
 
@@ -458,6 +473,7 @@ def execute(args) -> int:
         raise SignPDFError("--page requires --rect-mm")
     if args.name is not None and (args.field or args.list_fields):
         raise SignPDFError("--name applies only to new visible or invisible signatures")
+    appearance = appearance_settings(args)
     if args.list_fields:
         if args.output is not None:
             raise SignPDFError("--output cannot be used with --list-fields")
@@ -492,7 +508,7 @@ def execute(args) -> int:
             os.chmod(snapshot, 0o600)
             shutil.copyfileobj(incoming, outgoing)
         reader = pdf_reader(snapshot)
-        placement = choose_placement(args, reader)
+        placement = replace(choose_placement(args, reader), appearance=appearance)
         check_certification(reader)
         previous = verify_pdf(snapshot)
         staged = directory / "signed.pdf"
@@ -521,7 +537,7 @@ def main(argv=None) -> int:
                 raise SignPDFError("invalid worker invocation")
             return worker(Path(arguments[1]))
         return execute(parser().parse_args(arguments))
-    except SignPDFError as error:
+    except (SignPDFError, AppearanceError) as error:
         print(f"Error: {error}", file=sys.stderr)
     except KeyboardInterrupt:
         print("Operation cancelled.", file=sys.stderr)

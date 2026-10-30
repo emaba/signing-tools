@@ -45,6 +45,13 @@ and a PKCS#11 adapter test using substitutes. Visible appearances were also
 rendered and reviewed at page rotations 0, 90, 180, and 270 degrees. The
 signature text stays upright in the displayed rectangle.
 
+On October 30, a split-column appearance was added and all 64 automated tests
+passed. The unsigned preview was rendered and reviewed with the default macOS
+fonts. Tests cover embedded fonts, certificate-derived names, agreement between
+displayed time and signature metadata, all quarter-turn rotations, and
+preservation of a preceding signature. The new appearance still needs an
+owner-run smart-card acceptance test.
+
 ## Installation
 
 Use a dedicated Python 3.12 environment with the same architecture as SafeDive.
@@ -137,6 +144,55 @@ clipping, and `/UserUnit` scaling are handled.
 It is rejected for the other modes. The program checks bounds but does not
 detect overlap with text/images; choose a blank area and inspect the result.
 Very small rectangles may render the signature text illegibly.
+
+### Cursive name and signature details
+
+The optional `split` appearance places a cursive certificate-holder name on
+the left, a black vertical separator, and signature details on the right.
+It has a transparent background and no outer border. The existing `simple`
+appearance remains the default.
+
+```fish
+signpdf document.pdf --page last --rect-mm 85,245,110,27 \
+    --appearance split --location Genova -o document.split.pdf
+```
+
+This example occupies 110 by 27 mm and ends 195 mm from the displayed page's
+left edge. Choose a blank area. A wide rectangle is preferable to the original
+55-by-20 mm test box for this format. The layout scales uniformly to fit;
+long names or locations reduce the text size, so inspect the signed result.
+
+The name is derived from the signing certificate: given name and surname when
+both exist, otherwise the common name. The cursive version uses title case
+when the certificate name is entirely uppercase. The details use uppercase.
+There is no arbitrary signer-name override. This is typeset text, not a stored
+image of a handwritten signature.
+
+Italian labels are the default for this style: `Firmato digitalmente`, `da`,
+`Luogo`, and `Data`. Use `--appearance-language en` for English labels. The
+date and time use the same local signing time as the PDF signature metadata,
+in day/month/year and 24-hour format. This is not a trusted timestamp.
+
+`--location` is an optional user declaration, not a detected or verified
+location. It is also stored in the PDF signature's location metadata; omit it
+to omit the location line. It works as metadata with simple or invisible
+signatures too. Control characters and empty locations are rejected.
+
+The default fonts are macOS's `Apple Chancery.ttf` and `Arial.ttf`, loaded
+from `/System/Library/Fonts/Supplemental`. Only the used glyphs are embedded
+in the resulting PDF. No system font files are distributed with this project.
+Override them with `--script-font /path/to/script.ttf` and
+`--text-font /path/to/regular.ttf`. Standalone TTF/OTF fonts with Unicode maps
+and editable subset-embedding permission are supported; TTC collections are
+not supported. Missing fonts and unsupported glyphs produce controlled errors
+rather than silent substitutions. Install the updated requirements to obtain
+the `pyHanko[opentype]` dependencies.
+
+Font shaping and PDF metrics use a 1000-unit em to compensate for pyHanko
+0.38.0's native-unit CID width handling. The original font program and its
+layout tables are preserved; only the embedded subset and PDF metrics are
+written to the output. This avoids incorrect spacing with 2048-unit macOS
+fonts. Automated tests include a synthetic 2048-unit font.
 
 New fields use the first available `SignatureN`. `--name` chooses a new field
 name for visible or invisible signatures: start with a letter, use at most

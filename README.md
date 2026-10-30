@@ -27,7 +27,9 @@ specified in millimetres. It uses a dedicated Python environment and the same
 SafeDive/1Password setup. Real invisible, visible, and sequential two-signature
 runs have passed local checks. Existing-field hardware acceptance and the owner's
 visual review remain pending. The command
-does not change macOS reader preferences. See the guide for installation,
+does not change macOS reader preferences. An optional `--appearance split`
+style adds a cursive certificate-holder name, a vertical separator, and dated
+signature details. See the guide for installation,
 verification limits, and multiple signatures.
 
 ## Provenance and verification status
