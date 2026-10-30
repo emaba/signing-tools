@@ -35,6 +35,10 @@ signature details; it is the default for graphical placement. See the guide
 for installation,
 verification limits, and multiple signatures.
 
+For an isolated permanent macOS installation with one application directory
+and one Fish link, see [permanent installation](docs/installation.md).
+The installer preserves the existing `signp7m` function and its configuration.
+
 ## Provenance and verification status
 
 The starting implementation is the locally installed `signp7m.fish` associated

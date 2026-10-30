@@ -75,6 +75,11 @@ graphical flow remains an owner-run check.
 
 ## Installation
 
+For a permanent installation without checkout-dependent paths, use the
+[macOS installer](installation.md). It creates one application directory and
+one Fish autoload link, keeps packages isolated, and preserves the existing
+`signp7m` function. The following setup is for development or temporary use.
+
 Use a dedicated Python 3.12 environment with the same architecture as SafeDive.
 From the repository, in Fish:
 
@@ -106,8 +111,8 @@ required by this function. The CAdES `signp7m` function is unchanged.
 | `SIGNPDF_KEY_ID` | `SIGNP7M_KEY_ID`, then `445334` | Private key object ID in hexadecimal |
 | `SIGNPDF_CERT_ID` | Effective `SIGNPDF_KEY_ID` | Matching public certificate object ID |
 | `SIGNPDF_RAW_MECHANISM` | `0` | Set `1` only if separate hashing/signing is required |
-| `SIGNPDF_HOME` | Required by Fish wrapper | Absolute checkout directory |
-| `SIGNPDF_PYTHON` | Required by Fish wrapper | Dedicated Python executable |
+| `SIGNPDF_HOME` | Discovered from the Fish file | Optional absolute checkout/release directory override |
+| `SIGNPDF_PYTHON` | Discovered from the release or checkout | Optional dedicated Python executable override |
 
 If neither reference variable is configured, `signpdf` reads only scalar
 assignments from `~/.config/fish/functions/signp7m.fish` to find the historical
