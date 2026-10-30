@@ -51,6 +51,10 @@ fonts. Tests cover embedded fonts, certificate-derived names, agreement between
 displayed time and signature metadata, all quarter-turn rotations, and
 preservation of a preceding signature. The new appearance still needs an
 owner-run smart-card acceptance test.
+After visual refinement, all 64 tests passed again with Kaushan Script as the
+default cursive face and a 12 percent smaller details column. Separate
+synthetic sequential-signature checks passed with the bundled font at page
+rotations 0, 90, 180, and 270 degrees.
 
 ## Installation
 
@@ -151,6 +155,9 @@ The optional `split` appearance places a cursive certificate-holder name on
 the left, a black vertical separator, and signature details on the right.
 It has a transparent background and no outer border. The existing `simple`
 appearance remains the default.
+The cursive face is Kaushan Script, with a brush-like stroke. The details
+column is 12 percent smaller than the initial split-column version, while
+keeping its top-left alignment and the same overall signature rectangle.
 
 ```fish
 signpdf document.pdf --page last --rect-mm 85,245,110,27 \
@@ -178,9 +185,11 @@ location. It is also stored in the PDF signature's location metadata; omit it
 to omit the location line. It works as metadata with simple or invisible
 signatures too. Control characters and empty locations are rejected.
 
-The default fonts are macOS's `Apple Chancery.ttf` and `Arial.ttf`, loaded
-from `/System/Library/Fonts/Supplemental`. Only the used glyphs are embedded
-in the resulting PDF. No system font files are distributed with this project.
+The default fonts are the bundled `assets/fonts/KaushanScript-Regular.ttf`
+and macOS's `Arial.ttf`, loaded from `/System/Library/Fonts/Supplemental`.
+Kaushan Script is distributed unmodified under the SIL Open Font License 1.1;
+see [font provenance and license](../assets/fonts/README.md). Only the used
+glyphs are embedded in the resulting PDF. No system font files are distributed.
 Override them with `--script-font /path/to/script.ttf` and
 `--text-font /path/to/regular.ttf`. Standalone TTF/OTF fonts with Unicode maps
 and editable subset-embedding permission are supported; TTC collections are
@@ -193,6 +202,8 @@ Font shaping and PDF metrics use a 1000-unit em to compensate for pyHanko
 layout tables are preserved; only the embedded subset and PDF metrics are
 written to the output. This avoids incorrect spacing with 2048-unit macOS
 fonts. Automated tests include a synthetic 2048-unit font.
+To restore the earlier cursive face, pass
+`--script-font '/System/Library/Fonts/Supplemental/Apple Chancery.ttf'`.
 
 New fields use the first available `SignatureN`. `--name` chooses a new field
 name for visible or invisible signatures: start with a letter, use at most

@@ -6,6 +6,7 @@ import unicodedata
 
 
 FONT_DIRECTORY = Path("/System/Library/Fonts/Supplemental")
+BUNDLED_SCRIPT = Path(__file__).resolve().parent / "assets/fonts/KaushanScript-Regular.ttf"
 
 
 class AppearanceError(Exception):
@@ -54,9 +55,9 @@ def appearance_settings(args) -> dict:
             from pyhanko.pdf_utils.font.opentype import GlyphAccumulatorFactory  # noqa: F401
         except ImportError:
             raise AppearanceError("split appearances require pyHanko[opentype]; install requirements-signpdf.txt") from None
-        for key, supplied, default in (("script_font", args.script_font, "Apple Chancery.ttf"),
-                                        ("text_font", args.text_font, "Arial.ttf")):
-            path = (supplied or FONT_DIRECTORY / default).expanduser().resolve()
+        for key, supplied, default in (("script_font", args.script_font, BUNDLED_SCRIPT),
+                                        ("text_font", args.text_font, FONT_DIRECTORY / "Arial.ttf")):
+            path = (supplied or default).expanduser().resolve()
             check_font(path)
             result[key] = str(path)
     return result
@@ -115,7 +116,7 @@ def _shaped_line(engine, text):
     return engine.shape(text).graphics_ops, tuple(n * unit for n in box)
 
 
-def _text_block(engine, lines, resource, region, *, centered):
+def _text_block(engine, lines, resource, region, *, centered, size_scale=1):
     leading = engine.font_size * 1.08
     shaped = [_shaped_line(engine, line) for line in lines]
     left = min(box[0] for _, box in shaped)
@@ -123,7 +124,7 @@ def _text_block(engine, lines, resource, region, *, centered):
     right = max(box[2] for _, box in shaped)
     top = max(box[3] - i * leading for i, (_, box) in enumerate(shaped))
     x, y, width, height = region
-    scale = min(width / (right - left), height / (top - bottom))
+    scale = size_scale * min(width / (right - left), height / (top - bottom))
     offset_x = x + ((width - scale * (right - left)) / 2 if centered else 0) - scale * left
     offset_y = (y + (height - scale * (top - bottom)) / 2 - scale * bottom if centered
                 else y + height - scale * top)
@@ -179,7 +180,7 @@ def split_style(rotation: int, settings: dict):
             left = _text_block(script, [script_name], "SignatureScript", (20, 26, 410, 188), centered=True)
             right = _text_block(regular, detail_lines(name, settings.get("location"), self.text_params["ts"],
                                                      settings["language"]),
-                                "SignatureDetails", (500, 24, 480, 192), centered=False)
+                                "SignatureDetails", (500, 24, 480, 192), centered=False, size_scale=0.88)
             for key, engine in (("SignatureScript", script), ("SignatureDetails", regular)):
                 self.set_resource(ResourceType.FONT, generic.pdf_name("/" + key), engine.as_resource())
             scale = min(self.box.width / 1000, self.box.height / 240)
