@@ -448,6 +448,37 @@ class CryptographicPDFTests(PDFTestBase):
         signpdf.check_original_prefix(self.source, output)
         self.assertEqual(signpdf.verify_pdf(output, {"Signature1"}, "Signature1"), {"Signature1"})
 
+    def test_default_graphical_pipeline_signs_the_selected_third_page(self):
+        from pypdf import PdfWriter
+        from pypdf.generic import NameObject, NumberObject
+        writer = PdfWriter()
+        for _ in range(3):
+            writer.add_blank_page(width=600, height=800)
+        writer.pages[2][NameObject("/Rotate")] = NumberObject(90)
+        with self.source.open("wb") as stream:
+            writer.write(stream)
+        appearance = self.split_appearance()
+        def synthetic_sign(source, staged, placement, *unused):
+            self.assertEqual(placement.page, 2)
+            self.assertEqual(placement.rotation, 90)
+            self.assertEqual(placement.appearance["style"], "split")
+            signpdf.write_signed_pdf(source, staged, placement, self.signer)
+        def select(source, pages, initial_page, title, style):
+            self.assertEqual(initial_page, 3)
+            self.assertEqual(source.read_bytes(), self.source.read_bytes())
+            self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)
+            return 3, (10, 15, 110, 27)
+        with patch.object(signpdf, "appearance_settings", return_value=appearance), \
+             patch.object(signpdf, "choose_graphical", side_effect=select), \
+             patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "authenticate_and_sign", side_effect=synthetic_sign), redirect_stdout(io.StringIO()):
+            self.assertEqual(signpdf.execute(self.args()), 0)
+        output = self.root / "document.signed.pdf"
+        signpdf.verify_pdf(output, {"Signature1"}, "Signature1")
+        reader = signpdf.pdf_reader(output)
+        field = signpdf.signature_fields(reader)["Signature1"].indirect_reference.get_object()
+        self.assertEqual(field["/P"].indirect_reference, reader.pages[2].indirect_reference)
+
     def test_split_appearance_embeds_fonts_and_matches_signature_metadata(self):
         from pypdf.generic import ContentStream
         settings = self.split_appearance("--location", "Genova")

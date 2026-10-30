@@ -21,15 +21,18 @@ The filename does not enforce a `.pdf` input or `.p7m` output extension.
 
 ## PAdES signatures inside a PDF
 
-The companion [signpdf command](docs/signpdf.md) creates a signed PDF with an
-existing signature field, an invisible signature, or a visible rectangle
-specified in millimetres. It uses a dedicated Python environment and the same
+The companion [signpdf command](docs/signpdf.md) opens a local browser preview
+by default to choose the signing page and draw, move or resize the signature
+box. Explicit terminal modes support existing fields, invisible signatures,
+and rectangles in millimetres with `--page N`. It uses a dedicated Python
+environment and the same
 SafeDive/1Password setup. Real invisible, visible, and sequential two-signature
 runs have passed local checks. Existing-field hardware acceptance and the owner's
 visual review remain pending. The command
-does not change macOS reader preferences. An optional `--appearance split`
+does not change macOS reader preferences. The `--appearance split`
 style adds a cursive certificate-holder name, a vertical separator, and dated
-signature details. See the guide for installation,
+signature details; it is the default for graphical placement. See the guide
+for installation,
 verification limits, and multiple signatures.
 
 ## Provenance and verification status

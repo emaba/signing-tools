@@ -21,6 +21,7 @@ import sys
 import tempfile
 
 from signpdf_appearance import AppearanceError, appearance_settings, certificate_name, split_style
+from signpdf_picker import PickerCancelled, PickerError, choose_graphical
 
 
 MODULE = (
@@ -61,16 +62,17 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Sign a PDF using a smart card (PAdES).")
     p.add_argument("input", type=Path, help="input PDF; never overwritten")
     p.add_argument("-o", "--output", type=Path, help="output PDF (default: INPUT.signed.pdf)")
-    mode = p.add_mutually_exclusive_group(required=True)
+    mode = p.add_mutually_exclusive_group()
+    mode.add_argument("--graphical", action="store_true", help="choose page and rectangle in a local browser (default)")
     mode.add_argument("--list-fields", action="store_true", help="list signature fields without authentication")
     mode.add_argument("--field", help="sign an existing empty signature field by name")
     mode.add_argument("--invisible", action="store_true", help="create an invisible signature")
     mode.add_argument("--rect-mm", type=rectangle, metavar="LEFT,TOP,WIDTH,HEIGHT",
                       help="visible rectangle in mm from the displayed page's top-left corner")
-    p.add_argument("--page", help="page number starting at 1, or 'last' (default for --rect-mm)")
+    p.add_argument("--page", help="page number starting at 1, or 'last' (default); initial page in graphical mode")
     p.add_argument("--name", help="name for a new signature field (default: first unused SignatureN)")
-    p.add_argument("--appearance", choices=("simple", "split"), default="simple",
-                   help="visible style: simple text or cursive name with a details column")
+    p.add_argument("--appearance", choices=("simple", "split"),
+                   help="visible style (default: split for graphical placement, simple for explicit modes)")
     p.add_argument("--location", help="declared signing location; stored in signature metadata")
     p.add_argument("--appearance-language", choices=("it", "en"), default="it",
                    help="labels for split appearances (default: it)")
@@ -124,8 +126,8 @@ def page_rotation(page) -> int:
     return int(raw) % 360
 
 
-def pdf_box(page, rect_mm) -> tuple[float, float, float, float]:
-    """Convert displayed top-left millimetres into unrotated PDF user space."""
+def page_geometry(page):
+    """Return the common geometry used by both preview and signing."""
     crop, media = page.cropbox, page.mediabox
     left = max(float(crop.left), float(media.left))
     bottom = max(float(crop.bottom), float(media.bottom))
@@ -138,6 +140,33 @@ def pdf_box(page, rect_mm) -> tuple[float, float, float, float]:
     if min(width, height, unit) <= 0:
         raise SignPDFError("invalid page geometry")
     rotation = page_rotation(page)
+    return left, bottom, width, height, unit, rotation
+
+
+def graphical_pages(reader):
+    pages = []
+    for page in reader.pages:
+        left, bottom, width, height, unit, rotation = page_geometry(page)
+        display_w, display_h = (height, width) if rotation in (90, 270) else (width, height)
+        pages.append(dict(width_mm=display_w * unit / POINTS_PER_MM,
+                          height_mm=display_h * unit / POINTS_PER_MM,
+                          crop=(left, bottom, left + width, bottom + height), rotation=rotation))
+    return pages
+
+
+def page_index(value, count):
+    try:
+        index = count - 1 if value in (None, "last") else int(value) - 1
+    except ValueError:
+        raise SignPDFError("page must be a positive integer or 'last'") from None
+    if not 0 <= index < count:
+        raise SignPDFError("page number is outside the document")
+    return index
+
+
+def pdf_box(page, rect_mm) -> tuple[float, float, float, float]:
+    """Convert displayed top-left millimetres into unrotated PDF user space."""
+    left, bottom, width, height, unit, rotation = page_geometry(page)
     x, y, w, h = (n * POINTS_PER_MM / unit for n in rect_mm)
     display_w, display_h = (height, width) if rotation in (90, 270) else (width, height)
     if x + w > display_w + 1e-7 or y + h > display_h + 1e-7:
@@ -188,13 +217,7 @@ def choose_placement(args, reader) -> Placement:
         raise SignPDFError("the new field name is already in use")
     if args.invisible:
         return Placement(name, existing=False)
-    page_value = args.page or "last"
-    try:
-        index = len(reader.pages) - 1 if page_value == "last" else int(page_value) - 1
-    except ValueError:
-        raise SignPDFError("page must be a positive integer or 'last'") from None
-    if not 0 <= index < len(reader.pages):
-        raise SignPDFError("page number is outside the document")
+    index = page_index(args.page, len(reader.pages))
     return Placement(name, existing=False, page=index,
                      box=pdf_box(reader.pages[index], args.rect_mm),
                      rotation=page_rotation(reader.pages[index]))
@@ -469,10 +492,13 @@ def execute(args) -> int:
     source = args.input.expanduser().resolve(strict=True)
     if not source.is_file():
         raise SignPDFError("input must be a regular PDF file")
-    if args.page is not None and args.rect_mm is None:
-        raise SignPDFError("--page requires --rect-mm")
+    graphical = args.graphical or not (args.rect_mm is not None or args.field or args.invisible or args.list_fields)
+    if args.page is not None and args.rect_mm is None and not graphical:
+        raise SignPDFError("--page requires --rect-mm or graphical placement")
     if args.name is not None and (args.field or args.list_fields):
         raise SignPDFError("--name applies only to new visible or invisible signatures")
+    if args.appearance is None:
+        args.appearance = "split" if graphical else "simple"
     appearance = appearance_settings(args)
     if args.list_fields:
         if args.output is not None:
@@ -488,19 +514,12 @@ def execute(args) -> int:
     identity = file_identity(destination)
     # Parse layout before asking for authentication or replacement approval.
     reader = pdf_reader(source)
-    choose_placement(args, reader)
+    if graphical:
+        page_index(args.page, len(reader.pages))
+    else:
+        choose_placement(args, reader)
     check_certification(reader)
     require_signing_dependencies()
-    settings = signing_settings()
-    if identity is not None:
-        print(f"The output file already exists:\n{destination}")
-        try:
-            answer = input("Overwrite existing file? [y/N] ").strip().lower()
-        except EOFError:
-            answer = ""
-        if answer not in ("y", "yes"):
-            print("Operation cancelled.")
-            return 0
     with private_workspace(destination.parent) as directory:
         snapshot = directory / "input.pdf"
         # Create a private snapshot before launching any credential-bearing child.
@@ -508,9 +527,33 @@ def execute(args) -> int:
             os.chmod(snapshot, 0o600)
             shutil.copyfileobj(incoming, outgoing)
         reader = pdf_reader(snapshot)
-        placement = replace(choose_placement(args, reader), appearance=appearance)
         check_certification(reader)
         previous = verify_pdf(snapshot)
+        if graphical:
+            try:
+                number, rect = choose_graphical(snapshot, graphical_pages(reader),
+                                                page_index(args.page, len(reader.pages)) + 1,
+                                                source.name, appearance)
+            except PickerCancelled:
+                print("Operation cancelled.")
+                return 0
+            # Apply the same bounds/conversion checks as explicit CLI placement.
+            selected = argparse.Namespace(**vars(args))
+            selected.page, selected.rect_mm = str(number), rect
+            placement = replace(choose_placement(selected, reader), appearance=appearance)
+            print(f"Selected page: {number}; rectangle (mm): " + ",".join(f"{n:.3f}" for n in rect))
+        else:
+            placement = replace(choose_placement(args, reader), appearance=appearance)
+        settings = signing_settings()
+        if identity is not None:
+            print(f"The output file already exists:\n{destination}")
+            try:
+                answer = input("Overwrite existing file? [y/N] ").strip().lower()
+            except EOFError:
+                answer = ""
+            if answer not in ("y", "yes"):
+                print("Operation cancelled.")
+                return 0
         staged = directory / "signed.pdf"
         print("Authenticating through 1Password...")
         authenticate_and_sign(snapshot, staged, placement, settings, directory)
@@ -537,7 +580,7 @@ def main(argv=None) -> int:
                 raise SignPDFError("invalid worker invocation")
             return worker(Path(arguments[1]))
         return execute(parser().parse_args(arguments))
-    except (SignPDFError, AppearanceError) as error:
+    except (SignPDFError, AppearanceError, PickerError) as error:
         print(f"Error: {error}", file=sys.stderr)
     except KeyboardInterrupt:
         print("Operation cancelled.", file=sys.stderr)

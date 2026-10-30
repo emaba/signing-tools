@@ -6,10 +6,10 @@ reference only for the signing worker.
 
 ## Scope and verification status
 
-This first version supports existing empty signature fields, invisible
-signatures, visible rectangles in millimetres, and sequential signatures.
-Mouse placement, automatic blank-space detection, timestamps, and long-term
-validation profiles are not implemented.
+This version supports graphical page/rectangle placement, existing empty
+signature fields, invisible signatures, visible rectangles in millimetres,
+and sequential signatures. Automatic blank-space detection, timestamps, and
+long-term validation profiles are not implemented.
 
 The implementation uses pyHanko 0.38.0 and pypdf 6.10.0. Tests cover file
 handling and page geometry. Integration tests create real PDF signatures with
@@ -55,6 +55,23 @@ After visual refinement, all 64 tests passed again with Kaushan Script as the
 default cursive face and a 12 percent smaller details column. Separate
 synthetic sequential-signature checks passed with the bundled font at page
 rotations 0, 90, 180, and 270 degrees.
+
+Graphical placement was subsequently added as the default interaction. The
+pipeline is cryptographically tested using synthetic keys and a selected
+third, rotated page. Renderer tests check that crop/rotation/UserUnit geometry
+matches the signing coordinates. The local server is tested for cancellation,
+origin/host checks, one-time submission and cleanup. These tests do not invoke
+the smart card. A real browser acceptance run is recorded separately below.
+
+On October 30, all 72 Python tests and four Node UI-event tests passed.
+Browser acceptance on a synthetic three-page document covered page changes,
+drawing, moving, corner resizing, numeric measurements, zoom and confirmation.
+After entering `85,245,110,27`, confirmation returned page 3 and those physical
+coordinates within floating-point precision. A stale-coordinate issue found
+during testing was fixed: input events now update the box immediately, and
+confirmation rereads the displayed measurements. Regression tests cover both
+normal input and autofill without change events. Smart-card acceptance of the
+graphical flow remains an owner-run check.
 
 ## Installation
 
@@ -124,13 +141,49 @@ retry or mechanism fallback. See [SECURITY.md](../SECURITY.md).
 
 ## Placement and field names
 
-Choose exactly one mode:
+Graphical placement is the default:
+
+```fish
+signpdf document.pdf
+signpdf document.pdf --location Genova
+signpdf document.pdf --graphical --page 3
+```
+
+The command opens a private local preview in the default browser, initially on
+the last page (or the page requested with `--page`). Choose another page with
+the page controls. Click to place a standard 110-by-27 mm box, drag on blank
+paper to draw a new box, drag the box to move it, or drag a corner to resize.
+The side panel also accepts left/top/width/height in millimetres. Zoom does not
+change the selected physical coordinates. Arrow keys move a focused box by
+0.5 mm, or 2 mm with Shift. Changing the page clears the current box so the
+confirmation always applies to the visible page.
+
+`Use this position` returns the selected page and rectangle to the terminal.
+Only then is the PIN reference configured and authentication requested. The
+same private snapshot shown in the preview is signed. Cancelling in the
+browser or pressing Ctrl+C returns without requesting a signature. Closing
+the tab alone does not cancel immediately; cancel from Terminal, or the
+placement session expires after 30 minutes. The server closes on confirmation,
+cancellation, interruption, timeout, or failure.
+
+Graphical mode defaults to the approved split-column appearance with Kaushan
+Script. Use `--appearance simple` to choose the original text-only style.
+The box contains placeholder text: the real certificate name and signing time
+are added during signing, so inspect the final signed appearance too.
+
+The preview renderer uses PDFium and Pillow. Cropping, rotation and physical
+page dimensions are checked against signing geometry; mismatches stop the
+preview. All assets and page images stay on the Mac. No external page scripts,
+analytics or document upload are used. See [security notes](../SECURITY.md).
+
+For terminal-only placement, select one explicit mode:
 
 ```fish
 signpdf document.pdf --list-fields
 signpdf document.pdf --field SupplierSignature
 signpdf document.pdf --invisible
 signpdf document.pdf --page last --rect-mm 140,245,55,20
+signpdf document.pdf --page 3 --rect-mm 85,245,110,27 --appearance split
 ```
 
 `--list-fields` is read-only, does not authenticate, and emits one JSON object
@@ -145,7 +198,9 @@ within the effective page. Quarter-turn rotation, CropBox offsets, MediaBox
 clipping, and `/UserUnit` scaling are handled.
 
 `--page` is one-based, accepts `last`, and defaults to `last` for rectangles.
-It is rejected for the other modes. The program checks bounds but does not
+In graphical mode it chooses the initial preview page; with `--rect-mm` it
+chooses the signing page. It is rejected for invisible signatures, existing
+fields and field listing. The program checks bounds but does not
 detect overlap with text/images; choose a blank area and inspect the result.
 Very small rectangles may render the signature text illegibly.
 
@@ -154,7 +209,8 @@ Very small rectangles may render the signature text illegibly.
 The optional `split` appearance places a cursive certificate-holder name on
 the left, a black vertical separator, and signature details on the right.
 It has a transparent background and no outer border. The existing `simple`
-appearance remains the default.
+appearance remains the default for explicit terminal-only modes. Graphical
+placement defaults to `split`.
 The cursive face is Kaushan Script, with a brush-like stroke. The details
 column is 12 percent smaller than the initial split-column version, while
 keeping its top-left alignment and the same overall signature rectangle.
@@ -264,15 +320,19 @@ PKCS#11 traces or provide credentials when reporting a problem.
 ```fish
 fish --no-config --no-execute signpdf.fish
 .venv-signpdf/bin/python -m unittest discover -s tests -v
+node --test tests/test_placement_ui.cjs
 ```
 
 Skipped cryptographic tests are not evidence of successful signing. Review
 the final summary. Synthetic test keys are generated in memory; no user
 credentials or card are used by the automated suite.
+The optional Node test command uses only Node's built-in modules to exercise
+UI events, cancellation and coordinate submission without a real browser.
 
 Before signing real documents, use a disposable, non-sensitive PDF:
 
 ```fish
+signpdf 'test document.pdf' --location Genova -o 'test graphical.pdf'
 signpdf 'test document.pdf' --invisible -o 'test invisible.pdf'
 signpdf 'test document.pdf' --page last --rect-mm 10,10,55,20 -o 'test visible.pdf'
 signpdf 'test visible.pdf' --invisible -o 'test two signatures.pdf'

@@ -40,17 +40,18 @@ def check_font(path: Path):
 
 
 def appearance_settings(args) -> dict:
+    style = args.appearance or "simple"
     location = checked_text(args.location, "location") if args.location is not None else None
     if args.list_fields:
-        if args.appearance != "simple" or location or args.script_font or args.text_font:
+        if style != "simple" or location or args.script_font or args.text_font:
             raise AppearanceError("appearance and location options cannot be used with --list-fields")
         return {}
-    if args.appearance == "split" and args.invisible:
+    if style == "split" and args.invisible:
         raise AppearanceError("--appearance split requires a visible rectangle or existing field")
-    if args.appearance != "split" and (args.script_font or args.text_font):
+    if style != "split" and (args.script_font or args.text_font):
         raise AppearanceError("font options require --appearance split")
-    result = dict(style=args.appearance, location=location, language=args.appearance_language)
-    if args.appearance == "split":
+    result = dict(style=style, location=location, language=args.appearance_language)
+    if style == "split":
         try:
             from pyhanko.pdf_utils.font.opentype import GlyphAccumulatorFactory  # noqa: F401
         except ImportError:

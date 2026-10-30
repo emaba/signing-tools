@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Place your signature</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="heading">
+    <div><h1>Place your signature</h1><p id="documentName">Opening document…</p></div>
+    <div class="actions"><button id="cancel">Cancel</button><button id="confirm" class="primary" disabled>Use this position</button></div>
+  </header>
+  <nav class="toolbar" aria-label="Document controls">
+    <div class="page-controls">
+      <button id="previous" aria-label="Previous page" disabled>‹</button>
+      <label for="pageNumber">Page</label><input id="pageNumber" type="number" min="1" value="1" disabled>
+      <span id="pageCount">of —</span><button id="next" aria-label="Next page" disabled>›</button>
+    </div>
+    <label class="zoom-label" for="zoom">Zoom <select id="zoom"><option value="fit">Fit page</option><option value="width">Fit width</option><option value="0.75">75%</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option></select></label>
+    <span class="toolbar-hint">Click to place a box, or drag to draw one.</span>
+  </nav>
+  <div class="workbench">
+    <main id="viewport" aria-label="PDF preview">
+      <p id="message" role="status">Loading the page…</p>
+      <div id="stage" class="stage" hidden>
+        <div id="selection" class="selection" role="group" tabindex="0" aria-label="Signature box. Use arrow keys to move, or edit the measurements." hidden>
+          <div class="stamp" aria-hidden="true"><span class="script">Your signature</span><span class="details">Digitally signed<br>Certificate holder<br>Date and time at signing</span></div>
+          <span class="handle nw" data-handle="nw"></span><span class="handle ne" data-handle="ne"></span>
+          <span class="handle sw" data-handle="sw"></span><span class="handle se" data-handle="se"></span>
+        </div>
+      </div>
+    </main>
+    <aside aria-label="Signature measurements">
+      <h2>Signature position</h2>
+      <p>Move the box onto a blank area. Drag a corner to change its size.</p>
+      <button id="addBox" class="wide" disabled>Add signature box</button>
+      <div class="measurements">
+        <label>Left <span>mm</span><input id="left" type="number" min="0" step="0.1" disabled></label>
+        <label>Top <span>mm</span><input id="top" type="number" min="0" step="0.1" disabled></label>
+        <label>Width <span>mm</span><input id="width" type="number" min="0.1" step="0.1" disabled></label>
+        <label>Height <span>mm</span><input id="height" type="number" min="0.1" step="0.1" disabled></label>
+      </div>
+      <p id="paperSize" class="paper-size"></p>
+      <div class="appearance-note"><h3>Appearance preview</h3><p>The box shows the layout. Your certificate name and signing time will be added when you sign.</p></div>
+      <p class="keyboard-note">For precise placement, edit the measurements or select the box and use the arrow keys.</p>
+      <button id="clear" class="text-button" disabled>Remove box</button>
+    </aside>
+  </div>
+  <footer>Confirm the position to continue in Terminal. Your document stays on this Mac.</footer>
+  <div id="finished" class="finished" role="status" hidden><h1 id="finishedTitle"></h1><p id="finishedText"></p></div>
+</body>
+</html>

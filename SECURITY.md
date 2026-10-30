@@ -80,6 +80,31 @@ date/time matches the local PDF signing time; it is not a trusted timestamp.
 The optional signing location is user-declared. The cursive name is typeset
 text and is not an independently authenticated handwritten signature.
 
+### Local graphical placement
+
+The placement preview binds only to `127.0.0.1` on a random port and uses an
+unguessable per-session URL. It renders the private signing snapshot and
+keeps at most two PNG previews in memory. It serves only packaged UI assets,
+the selected script font, page dimensions and rendered page images, never an
+arbitrary filesystem path or the raw PDF. PDFium renders annotations and forms
+so existing visible signatures and form values can be reviewed.
+
+Host/origin checks, a request header, a per-session capability, a restrictive
+content-security policy, no CORS and no-store response headers limit exposure
+to other browser pages. There are no external resources or uploads. Neither
+PINs nor secret references are sent to the browser, and authentication is not
+requested until placement is confirmed. Cancellation does not sign. The
+server closes after confirmation/cancellation, on handled errors/interruption,
+or after a 30-minute placement timeout. Closing the tab alone does not notify
+the terminal; cancel there if needed.
+
+The browser receives document images and may retain its own memory/history.
+An unguessable URL and local binding do not protect against malicious software
+or extensions running as the same user. The preview is a placement aid, not a
+certificate/trust validation result or an exact preview of a certificate name
+that has not yet been read. Final cryptographic verification still runs before
+output publication. Use explicit `--rect-mm` or `--invisible` to skip the UI.
+
 ## Reporting a problem
 
 Report security issues privately to the repository owner. Do not attach real
