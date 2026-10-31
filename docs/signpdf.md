@@ -181,6 +181,14 @@ page dimensions are checked against signing geometry; mismatches stop the
 preview. All assets and page images stay on the Mac. No external page scripts,
 analytics or document upload are used. See [security notes](../SECURITY.md).
 
+The temporary HTTP server listens exclusively on IPv4 `127.0.0.1` and cannot
+be reached directly from another machine through Wi-Fi or Ethernet. It closes
+before 1Password authentication begins. Loopback also permits connections
+from other local processes/users, so the per-session URL must remain private;
+the server additionally checks browser origins and request headers. See the
+[local preview security and diagnostic command](../SECURITY.md#local-graphical-placement).
+Explicit placement modes below start no preview server.
+
 For terminal-only placement, select one explicit mode:
 
 ```fish

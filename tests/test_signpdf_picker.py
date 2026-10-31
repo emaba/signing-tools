@@ -87,6 +87,12 @@ class PickerTests(PDFTestBase):
                 finally:
                     session.close()
 
+    def test_listener_is_bound_exclusively_to_ipv4_loopback(self):
+        _, server, _ = self.server()
+        self.assertEqual(server.socket.family, socket.AF_INET)
+        self.assertEqual(server.socket.getsockname(), ("127.0.0.1", server.server_port))
+        self.assertGreater(server.server_port, 0)
+
     def test_loopback_server_rejects_foreign_origins_and_missing_capability(self):
         _, server, url = self.server()
         for target, headers in ((server.origin + "/api/info", {}),
@@ -135,6 +141,32 @@ class PickerTests(PDFTestBase):
                                     1, "Synthetic", {}, open_browser=False, ready=ready)
         with socket.socket() as connection:
             self.assertNotEqual(connection.connect_ex(("127.0.0.1", port)), 0)
+
+    def test_confirmation_and_timeout_close_listener_before_returning(self):
+        for confirmed in (True, False):
+            with self.subTest(confirmed=confirmed):
+                port = None
+                def ready(url):
+                    nonlocal port
+                    parts = urlsplit(url)
+                    port = parts.port
+                    if confirmed:
+                        request = Request(url + "api/select", data=json.dumps(
+                            {"page": 1, "rect": [.1, .2, .5, .1]}).encode(), headers={
+                                "Origin": f"{parts.scheme}://{parts.netloc}",
+                                "Content-Type": "application/json", "X-Signpdf-Request": "1"})
+                        with urlopen(request, timeout=5) as response:
+                            self.assertEqual(response.status, 200)
+                options = dict(open_browser=False, ready=ready, timeout=0)
+                arguments = (self.source, signpdf.graphical_pages(signpdf.pdf_reader(self.source)),
+                             1, "Synthetic", {})
+                if confirmed:
+                    self.assertEqual(picker.choose_graphical(*arguments, **options)[0], 1)
+                else:
+                    with self.assertRaises(picker.PickerCancelled):
+                        picker.choose_graphical(*arguments, **options)
+                with socket.socket() as connection:
+                    self.assertNotEqual(connection.connect_ex(("127.0.0.1", port)), 0)
 
     def test_default_graphical_cancellation_never_requests_credentials(self):
         args = self.args("--appearance", "simple")

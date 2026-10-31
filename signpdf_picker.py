@@ -213,6 +213,7 @@ def make_server(session):
         def handle_error(self, *unused):
             pass
 
+    # Bind the IPv4 loopback address explicitly; never expose previews on LAN interfaces.
     server = QuietServer(("127.0.0.1", 0), Handler)
     server.authority = f"127.0.0.1:{server.server_port}"
     server.origin = "http://" + server.authority

@@ -89,14 +89,24 @@ the selected script font, page dimensions and rendered page images, never an
 arbitrary filesystem path or the raw PDF. PDFium renders annotations and forms
 so existing visible signatures and form values can be reviewed.
 
+This is an IPv4 loopback listener, not a wildcard (`0.0.0.0` or `::`)
+listener: it does not accept direct connections through Wi-Fi, Ethernet or
+other external network interfaces. It requires no Internet connection for
+placement. Loopback is accessible to processes belonging to other local users
+as well; it is not a user-authentication boundary. Anyone who obtains the
+session URL and can connect locally could read previews or submit/cancel a
+placement. The HTTP API does not expose a signing or PIN endpoint. Do not
+share the session URL or forward its port with a proxy or tunnel.
+
 Host/origin checks, a request header, a per-session capability, a restrictive
 content-security policy, no CORS and no-store response headers limit exposure
 to other browser pages. There are no external resources or uploads. Neither
 PINs nor secret references are sent to the browser, and authentication is not
 requested until placement is confirmed. Cancellation does not sign. The
 server closes after confirmation/cancellation, on handled errors/interruption,
-or after a 30-minute placement timeout. Closing the tab alone does not notify
-the terminal; cancel there if needed.
+or after a 30-minute placement timeout. The listener is closed before
+1Password authentication and the signing worker start. Closing the tab alone
+does not notify the terminal; cancel there if needed.
 
 The browser receives document images and may retain its own memory/history.
 An unguessable URL and local binding do not protect against malicious software
@@ -104,6 +114,21 @@ or extensions running as the same user. The preview is a placement aid, not a
 certificate/trust validation result or an exact preview of a certificate name
 that has not yet been read. Final cryptographic verification still runs before
 output publication. Use explicit `--rect-mm` or `--invisible` to skip the UI.
+
+To inspect the actual listener on macOS, leave the preview open and run this
+in a second Fish terminal. Replace the example port with the port shown in
+the preview's browser address; do not copy or share the full session URL.
+
+```fish
+set -l preview_port 54321 # Replace with the port shown in the browser.
+lsof -nP -a -iTCP:$preview_port -sTCP:LISTEN
+```
+
+The listener should show `127.0.0.1:PORT (LISTEN)`. A wildcard or LAN address
+would violate the intended boundary. After confirmation or cancellation,
+there should be no listener for that process and port. This check does not
+read credentials, card contents or document data. Regression tests verify the
+bound socket's address/family, rejected browser requests and listener closure.
 
 ## Reporting a problem
 
