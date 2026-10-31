@@ -7,7 +7,8 @@ Guide reviewed 31 October 2026. See `PACKAGE-INFO.json` for the bundle build dat
 This package installs two commands: `signp7m` produces a signed `.p7m` file;
 `signpdf` produces a signed PDF and normally opens a graphical placement window.
 You can follow this guide yourself or give this folder and `FOR-CLAUDE.md` to
-Claude. The Markdown and PDF versions contain the same installation steps.
+Claude. This guide uses Zsh, the macOS default shell: **Fish is not required**.
+The Markdown and PDF versions contain the same installation steps.
 
 ### Before you start
 
@@ -35,7 +36,7 @@ the installer's printed **Next steps** for your shell. Enter any Mac administrat
 password privately. Do not paste it into a chat. Then run:
 
 ```sh
-brew install fish python@3.12 uv openssl@4 libp11 opensc
+brew install python@3.12 uv openssl@4 libp11 opensc
 brew install --cask 1password-cli
 ```
 
@@ -50,23 +51,17 @@ Keep a working existing 1Password installation. Do not run a general
 The OpenSSL 4 selection matches the libp11/OpenSC formulae checked on this
 guide's date. A provider-loading check later catches a future mismatch.
 
-### 2. Start Fish and open the package folder
-
-The remaining commands use **Fish syntax**. Start it:
-
-```sh
-fish
-```
+### 2. Open the package folder in your normal Terminal
 
 Unzip the package in Downloads, then:
 
-```fish
+```sh
 cd "$HOME/Downloads/signing-tools-macos"
 ```
 
-Adjust this path if Finder used another folder name. This changes only the
-current terminal session. If a future Terminal window opens Zsh, type `fish`
-before using these commands.
+Adjust the path if Finder used another folder name. Keep using Zsh; do not
+install Fish or change your login shell. Bash is also supported; see the
+included source/docs/shells.md for its startup-file differences.
 
 <!-- pagebreak -->
 
@@ -116,7 +111,7 @@ op://VAULT_ID/ITEM_ID/FIELD_ID
 ```
 
 An optional section and names with spaces are supported. Keep quotation marks
-when inserting it in Fish configuration. Prefer the reference copied by the
+when inserting it in the private settings file. Prefer the reference copied by the
 app; do not invent IDs. References are identifiers rather than PINs, but their
 vault/item names can still be private metadata.
 
@@ -128,28 +123,21 @@ sign the sample. The tool cannot determine the correct PIN on your behalf.
 
 ## Install the commands
 
-### 5. Install the isolated PDF tool
+### 5. Install both commands without Fish
 
-From the extracted package folder, still in Fish:
+From the extracted package folder, in your normal Zsh Terminal:
 
-```fish
-python3.12 source/install_signpdf.py --plan
-python3.12 source/install_signpdf.py
+```sh
+python3.12 source/install_signpdf.py --shell zsh --plan
+python3.12 source/install_signpdf.py --shell zsh
+python3.12 install-shell-extras.py
 ```
 
-The first command shows the target paths. The second downloads Python packages
-into a private environment and installs one Fish autoload link. A successful
-run prints the installed release and application directory.
-
-Now install the P7M function and, on a fresh setup, a configuration template:
-
-```fish
-fish install-fish-extras.fish
-```
-
-The helper preserves any existing `signp7m` function and configuration. Read
-its summary. If it kept an already working setup, do not overwrite that setup
-just to match this guide. No PIN or secret reference is read by the helper.
+The plan shows the target paths. Installation downloads Python packages into
+a private environment and installs one managed command-file link. The helper
+creates only missing settings; it never reads or replaces an existing file.
+Keep any working setup. Existing Fish installations should instead follow
+source/docs/installation.md; do not mix the two installation procedures.
 
 ### What gets installed
 
@@ -160,37 +148,42 @@ just to match this guide. No PIN or secret reference is read by the helper.
     releases/<version>/venv/     Private Python packages
     install.json                Installation metadata
 
-~/.config/fish/functions/signpdf.fish   Autoload link
-~/.config/fish/functions/signp7m.fish   P7M function, if absent
-~/.config/fish/conf.d/signing-tools.fish
-                                      Shared reference/settings, if needed
+~/.config/signing-tools/commands.sh    Managed shell-entry link
+~/.config/signing-tools/settings.sh    Private reference/settings (mode 600)
 ```
 
-There are no global Python packages, login items or permanent background
-services. Homebrew manages its own dependencies in its standard location.
-Unlike the PDF-only installer, this new-Mac setup also adds a shared Fish
-configuration file to select Homebrew OpenSSL and hold the PIN reference.
-The reference file never contains the actual PIN.
+No global Python packages, login items or permanent background services are
+added. The selected Homebrew OpenSSL is used only inside the signing/check
+commands. Your normal shell PATH is unchanged. The extracted Downloads folder
+is not needed at runtime. Do not move installed releases or their environments.
 
-The installation does not need the extracted Downloads folder at runtime.
-Keep this guide and ZIP for later use. Do not move an installed release or
-its virtual environment; their paths are part of the installation.
+### 6. Configure the reference and enable the commands
 
-### 6. Put the reference in the private configuration
+Open the private settings file in Vim:
 
-On a fresh setup the helper creates this file. Open it with Vim:
-
-```fish
-vim "$HOME/.config/fish/conf.d/signing-tools.fish"
+```sh
+vim "$HOME/.config/signing-tools/settings.sh"
 ```
 
 Press `i`. Replace only `op://VAULT_ID/ITEM_ID/FIELD_ID` with the reference
-copied in step 4, keeping its surrounding quotes. Do not put a numeric PIN
-here. Press Escape, type `:wq`, then press Enter to save.
+copied in step 4, keeping its surrounding quotes. Never put the numeric PIN
+here. Keep the OpenSSL-selection block. Press Escape, then type `:wq` and Enter.
 
-Keep the OpenSSL-selection block in the template. It places the matched
-Homebrew OpenSSL before macOS's system implementation in Fish sessions.
-The helper makes this settings file readable only by your user.
+Open your Zsh startup file (respects a custom ZDOTDIR):
+
+```sh
+vim "${ZDOTDIR:-$HOME}/.zshrc"
+```
+
+Add the following line **once**, at the end, then save. The installer does not
+edit this file. Preserve any existing contents; an assistant should back it up
+before editing. New Terminal windows will load the commands automatically.
+
+```sh
+. "$HOME/.config/signing-tools/commands.sh"
+```
+
+Run that same source line in the current Terminal, or open a new window.
 
 <!-- pagebreak -->
 
@@ -202,9 +195,9 @@ The default profile is token label `CNS`, certificate/private-key ID `445334`
 (the DS4 object ID), and a P7M certificate-reading slot of `0x2`.
 The slot can differ on another reader or Mac. Run this local, no-login check:
 
-```fish
-set -l signing_app '/Applications/SafeDive/STCryptoTokenKit.app'
-set -l module "$signing_app/Contents/PlugIns/STToken.appex/Contents/Frameworks/libstPKCS11.dylib"
+```sh
+signing_app='/Applications/SafeDive/STCryptoTokenKit.app'
+module="$signing_app/Contents/PlugIns/STToken.appex/Contents/Frameworks/libstPKCS11.dylib"
 pkcs11-tool --module "$module" --list-slots
 ```
 
@@ -222,9 +215,9 @@ Do not guess key IDs, list private-key material, or try different PINs.
 
 On a fresh setup:
 
-```fish
-source "$HOME/.config/fish/conf.d/signing-tools.fish"
-python3.12 check-setup.py
+```sh
+. "$HOME/.config/signing-tools/commands.sh"
+signing_tools_check
 signpdf --help
 signp7m --help
 ```
@@ -233,7 +226,7 @@ If you already had a working configuration and no new file was created,
 keep its normal startup procedure. The supplied checker expects the shared
 reference variable used by this fresh-install guide.
 
-`check-setup.py` reports only PASS/FAIL status for tools, reference format,
+`signing_tools_check` reports only PASS/FAIL status for tools, reference format,
 the middleware file and OpenSSL provider loading. It does not read the PIN,
 contact 1Password, log in to the card or print the reference. PASS means these
 local prerequisites work; it does not prove the PIN or signing certificate.
@@ -243,16 +236,9 @@ libp11 provider must load into it. Keep the process, middleware and libraries
 on the same architecture; do not mix Rosetta/Intel and native ARM software.
 Keep Homebrew Python 3.12 installed even if another Python version is present.
 
-Before the real test, remove development overrides from the current session
-if you previously tried a checkout-based installation:
-
-```fish
-set -e SIGNPDF_HOME SIGNPDF_PYTHON
-functions -e signpdf
-signpdf --help
-```
-
-A new Fish session will load the permanent commands and shared configuration.
+The commands reload settings inside their own subshell on every invocation.
+You do not need to export the reference in your terminal. An existing working
+Fish setup can remain unchanged on another Mac; this guide does not require it.
 
 <!-- pagebreak -->
 
@@ -262,7 +248,7 @@ A new Fish session will load the permanent commands and shared configuration.
 
 Keep your card inserted. From the extracted folder:
 
-```fish
+```sh
 signpdf sample.pdf --location Genova -o sample.pades.pdf
 ```
 
@@ -276,7 +262,7 @@ The command should report cryptographic integrity and permitted-change checks
 as PASSED. Open the resulting PDF and check that the name, text and position
 are legible. The next test exercises CAdES and its slot selection:
 
-```fish
+```sh
 signp7m -o sample.cades.p7m sample.pdf
 ```
 
@@ -287,7 +273,7 @@ retry automatically. An assistant may help with setup, but should not approve
 
 ### Common commands
 
-```fish
+```sh
 # Graphical placement, default appearance
 signpdf document.pdf --location Genova
 
@@ -321,8 +307,8 @@ not a general certificate-trust or legal-qualification assessment.
 
 ### If something does not work
 
-- **Command not found:** type `fish`, then try again. Do not change the login
-  shell just to solve this. Check that the helper/installer completed.
+- **Command not found:** load the source line from step 6 or open a new Zsh
+  Terminal. Check the startup line and that the installer completed.
 - **Reference/configuration error:** copy the reference from the correct
   concealed 1Password field and reload the configuration. Never print the PIN.
 - **1Password cannot connect:** open/unlock the desktop app, confirm CLI
@@ -337,24 +323,22 @@ not a general certificate-trust or legal-qualification assessment.
 
 ### Update
 
-Obtain a reviewed newer package and rerun its PDF installer. It prepares a
-new isolated release and retains the previous one. The P7M helper keeps an
-existing function, so a P7M update requires a deliberate backup and review.
-Do not overwrite a working private configuration with the example template.
+Obtain a reviewed newer package and rerun its installer with `--shell zsh`.
+It updates both commands together and retains the previous release. Open a
+new Terminal. Do not replace working private settings with the example template.
 
 ### Remove a fresh installation
 
-For PDF installation removal:
+To remove the managed application:
 
-```fish
+```sh
 python3.12 "$HOME/Library/Application Support/signp7m/current/app/install_signpdf.py" --uninstall
 ```
 
-This removes the managed PDF link and moves the application folder to Trash.
-It does not remove `signp7m`, the shared reference file, SafeDive, Homebrew or
-1Password. If this guide created the P7M function and shared settings, move
-those two files to Trash separately when you no longer need them. Preserve
-any files that predated this setup. Open a new Fish session afterwards.
+This removes the managed command link and moves the application folder to
+Trash. Remove the source line from your Zsh startup file with Vim. Remove
+the private settings only when no longer needed. SafeDive, Homebrew, 1Password
+and unrelated Fish functions are preserved. Open a new Terminal afterwards.
 
 ### Official references and what was tested
 
@@ -366,9 +350,10 @@ any files that predated this setup. Open a new Fish session afterwards.
 - Copying secret references: https://www.1password.dev/cli/secret-reference-syntax
 - InfoCert drivers: https://www.infocert.it/firma-digitale2/driver-installazione
 
-The signing/installation baseline passed 78 Python tests and four UI tests
-during development. Distribution checks additionally cover helper preservation,
-non-disclosure and archive reproducibility.
+Tests cover both shell integrations, CAdES failure handling, generated-key
+OpenSSL signing, PDF integrity and package reproducibility. The Zsh/Bash
+CAdES command still needs your first hardware sample test; software tests
+do not prove compatibility with your reader or 1Password account.
 This package does not contain personal signed PDFs, public certificates from
 the author, PINs or the author's 1Password references. A fresh-Mac hardware
 test is still required on the recipient's own reader and card.

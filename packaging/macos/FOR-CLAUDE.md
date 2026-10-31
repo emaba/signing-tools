@@ -8,7 +8,7 @@ secrets. Read `START-HERE.md` first; it is the authoritative human procedure.
 
 > Install the signing tools from this extracted folder by following
 > START-HERE.md and FOR-CLAUDE.md. Use Homebrew for the listed dependencies and
-> the isolated installer for signpdf. Preserve any working signing setup.
+> the isolated installer with --shell zsh for both commands (no Fish). Preserve any working signing setup.
 > Never read, print or request my PIN, password, private key or recovery code.
 > Leave private PIN entry, vendor/admin prompts and 1Password approval to me.
 > Run only non-secret checks automatically; let me perform the first real
@@ -22,17 +22,19 @@ secrets. Read `START-HERE.md` first; it is the authoritative human procedure.
   `445334`. The P7M slot default `0x2` is reader-dependent and must be checked.
 - Install root: `~/Library/Application Support/signp7m/`. Do not redirect the
   installation into unrelated directories when a required permission is denied.
-- Fish commands are functions; installing Fish does not change the login
-  shell. Use Fish explicitly. Do not run `chsh` or edit `/etc/shells`.
+- Use the existing Zsh shell. Fish is optional and is not a dependency for
+  this guide. Do not run `chsh` or edit `/etc/shells`. Both commands are
+  functions loaded by one source line in the Zsh startup file.
 - Preserve existing functions, private settings and working dependencies.
-  The extra helper only creates missing files. The PDF installer backs up an
-  existing PDF function and retains previous releases.
+  The settings helper only creates missing files. The installer backs up
+  an existing entry link/file and retains previous releases. Do not switch
+  an existing Fish installation to Zsh without reviewing migration first.
 
 ## Workflow
 
 1. Confirm the extracted folder and run `shasum -a 256 -c SHA256SUMS.txt`. The package has
    all source and no requirement for access to the author's private GitHub repo.
-2. Check macOS support, native CPU architecture, existing Homebrew, Fish,
+2. Check macOS support, native CPU architecture, existing Homebrew, Zsh,
    Python 3.12, uv, OpenSSL, libp11, OpenSC and 1Password. Install missing listed
    dependencies using official Homebrew formulae/casks from START-HERE.md.
    No general upgrade, cleanup, unrelated uninstall or architecture switch.
@@ -41,9 +43,10 @@ secrets. Read `START-HERE.md` first; it is the authoritative human procedure.
 4. Verify that the correct issuer middleware is installed. Use the official
    InfoCert driver page for this profile. Do not redistribute or silently
    substitute an unrelated SafeDive package. The user handles vendor prompts.
-5. Run the PDF installer's plan, then installation after required filesystem
-   permissions are available. Run `fish install-fish-extras.fish`. Keep the
-   helper's existing-file decisions; do not overwrite them manually.
+5. Run the installer plan and installation with `--shell zsh` after required
+   filesystem permissions are available. Run `python3.12 install-shell-extras.py`.
+   Preserve existing settings. Back up the Zsh startup file before adding the
+   documented source line once; respect ZDOTDIR. Do not replace other contents.
 6. Guide the user through 1Password desktop setup. The user enters the correct
    signing PIN privately and copies the field's secret reference. They may
    edit the private settings file themselves. If they explicitly provide a
@@ -55,7 +58,7 @@ secrets. Read `START-HERE.md` first; it is the authoritative human procedure.
    locally and report only the needed reader/slot status, omitting serials and
    personal certificate information. If the profile differs, stop and obtain
    issuer-supported settings rather than guessing certificate or key IDs.
-8. Load the Fish configuration, run `python3.12 check-setup.py`, and run both
+8. Load commands.sh, run `signing_tools_check`, and run both
    `--help` commands. An OpenSSL provider mismatch must be fixed by selecting
    compatible Homebrew components, never by disabling verification.
 9. Ask the user to perform the included sample's PDF and P7M signing tests in
@@ -74,16 +77,17 @@ secrets. Read `START-HERE.md` first; it is the authoritative human procedure.
   Do not resolve a PIN merely to test whether a reference exists.
 - Do not enable APDU traces, PKCS#11 spy logging or verbose secret diagnostics.
 - The only persistent PIN setting is an `op://...` identifier outside the
-  source folder, in the private Fish configuration. Never write a literal PIN.
+  source folder, in the private settings.sh configuration. Never write a literal PIN.
 - A wrong/blocked-PIN message means stop and hand control to the owner.
 
 ## Files created for a fresh setup
 
 - Isolated source/assets/venv/releases under Application Support/signp7m.
-- `~/.config/fish/functions/signpdf.fish`: managed link.
-- `~/.config/fish/functions/signp7m.fish`: created only if missing.
-- `~/.config/fish/conf.d/signing-tools.fish`: reference/OpenSSL settings
-  template, created only when a new configuration is needed; mode 600.
+- `~/.config/signing-tools/commands.sh`: managed link.
+- `~/.config/signing-tools/settings.sh`: reference/OpenSSL settings, created
+  only when missing; mode 600.
+- One source line in `${ZDOTDIR:-$HOME}/.zshrc`, added after backup without
+  replacing other startup content. Never create duplicate source lines.
 
 Do not silently modify the template after the user has configured it. For
 updates/removal use the documented procedures, preserve pre-existing files,

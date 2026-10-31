@@ -47,7 +47,12 @@ elif name == "pkcs11-tool":
     Path(value("--output-file")).write_bytes(b"PUBLIC TEST CERTIFICATE")
 elif name == "op":
     assert args[:2] == ["run", "--"]
-    assert os.environ.get("PKCS11_PIN") == os.environ["SIGNP7M_PIN_REF"]
+    expected = ("op://" + os.environ["TEST_EXPECTED_PIN_REF"] if os.environ.get("TEST_FILTERED")
+                else os.environ["SIGNP7M_PIN_REF"])
+    assert os.environ.get("PKCS11_PIN") == expected
+    if os.environ.get("TEST_FILTERED"):
+        assert "SIGNP7M_PIN_REF" not in os.environ
+        assert "UNRELATED_SECRET" not in os.environ
     fail("authentication")
     child_env = dict(os.environ)
     child_env["PKCS11_PIN"] = "SYNTHETIC_TEST_MARKER"

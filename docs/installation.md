@@ -1,5 +1,10 @@
 # Permanent macOS installation
 
+This page describes the existing **Fish** integration. For a new Zsh/Bash
+installation without Fish, use [the shell-independent procedure](shells.md)
+or the shareable package's START-HERE guide. Both use the same isolated
+application layout; do not mix integration modes in an existing root.
+
 The existing `signp7m` Fish function is already a permanent installation.
 This installer leaves that function and its private configuration untouched.
 It installs `signpdf` independently of the checkout or Codex chat directory.

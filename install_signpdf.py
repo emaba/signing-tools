@@ -23,6 +23,8 @@ FILES = ("signpdf.py", "signpdf.fish", "signpdf_appearance.py", "signpdf_picker.
          "docs/signpdf.md", "docs/installation.md", "docs/macos-smartcard-driver.md",
          "assets/placement/index.html", "assets/placement/style.css", "assets/placement/app.js",
          "assets/fonts/KaushanScript-Regular.ttf", "assets/fonts/OFL-KaushanScript.txt", "assets/fonts/README.md")
+FILES += ("signp7m.py", "signing-tools.sh", "packaging/macos/check-setup.py",
+          "packaging/macos/settings.example.sh", "docs/shells.md")
 
 
 class InstallError(Exception):
@@ -97,16 +99,17 @@ def restore_entry(backup, destination):
         temporary.unlink(missing_ok=True)
 
 
-def install(source, prefix, functions, python, uv, cache=None, offline=False):
+def install(source, prefix, functions, python, uv, cache=None, offline=False, shell="fish"):
     previous = state_at(prefix)
-    function = functions / "signpdf.fish"
-    target = prefix / "current/app/signpdf.fish"
+    entry = "signpdf.fish" if shell == "fish" else "signing-tools.sh"
+    function = functions / ("signpdf.fish" if shell == "fish" else "commands.sh")
+    target = prefix / "current/app" / entry
     if previous and previous["function"] != str(function):
-        raise InstallError("this installation manages a different Fish function directory")
+        raise InstallError("this installation manages a different shell entry; review migration before switching")
     if function.exists() and function.is_dir():
-        raise InstallError("the signpdf Fish path is a directory")
+        raise InstallError("the shell entry path is a directory")
     if previous and (not function.is_symlink() or os.readlink(function) != str(target)):
-        raise InstallError("the installed Fish link changed; refusing to overwrite it")
+        raise InstallError("the installed shell link changed; refusing to overwrite it")
     run([python, "-c", "import sys; assert sys.version_info[:2] == (3, 12)"], "Python 3.12 is required")
     version, hashes = inventory(source)
     release = prefix / "releases" / version
@@ -148,7 +151,7 @@ def install(source, prefix, functions, python, uv, cache=None, offline=False):
         run([environment / "bin/python", "-c", "import pkcs11, pypdf, pypdfium2, PIL, pyhanko; "
              "from pyhanko.pdf_utils.font.opentype import GlyphAccumulator"], "an installed dependency failed to import")
         if not previous and (function.exists() or function.is_symlink()):
-            backup = "backups/signpdf.fish.original"
+            backup = "backups/entry.original"
             (prefix / "backups").mkdir(mode=0o700)
             copy_entry(function, prefix / backup)
         functions.mkdir(parents=True, exist_ok=True)
@@ -177,8 +180,8 @@ def install(source, prefix, functions, python, uv, cache=None, offline=False):
                 shutil.rmtree(prefix)
     print(f"Installed signpdf release: {version}")
     print(f"Application directory: {prefix}")
-    print(f"Fish autoload link: {function}")
-    print("Open a new terminal window. The existing signp7m function was not changed.")
+    print(f"Shell entry link: {function}")
+    print("Open a new terminal window. Existing shell functions and private settings were not changed.")
 
 
 def uninstall(prefix, trash):
@@ -186,8 +189,9 @@ def uninstall(prefix, trash):
     if state is None:
         raise InstallError("signpdf is not installed at this location")
     function = Path(state["function"])
-    if not function.is_symlink() or os.readlink(function) != str(prefix / "current/app/signpdf.fish"):
-        raise InstallError("the Fish link changed; refusing to remove or overwrite it")
+    entry = "signpdf.fish" if function.name == "signpdf.fish" else "signing-tools.sh"
+    if not function.is_symlink() or os.readlink(function) != str(prefix / "current/app" / entry):
+        raise InstallError("the shell link changed; refusing to remove or overwrite it")
     if state["backup"]:
         restore_entry(prefix / state["backup"], function)
     else:
@@ -197,16 +201,18 @@ def uninstall(prefix, trash):
     try:
         shutil.move(str(prefix), str(destination))
     except Exception:
-        symlink_atomic(str(prefix / "current/app/signpdf.fish"), function)
-        raise InstallError("the application could not be moved to Trash; its Fish link was restored") from None
-    print("signpdf was removed from Fish and its application folder was moved to Trash.")
-    print("The existing signp7m function was not changed.")
+        symlink_atomic(str(prefix / "current/app" / entry), function)
+        raise InstallError("the application could not be moved to Trash; its shell link was restored") from None
+    print("The managed shell link was removed and the application folder was moved to Trash.")
+    print("Existing shell functions, startup files and private settings were not changed.")
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prefix", type=Path, default=DEFAULT_PREFIX)
-    parser.add_argument("--function-dir", type=Path, default=DEFAULT_FUNCTIONS)
+    parser.add_argument("--shell", choices=("fish", "zsh", "bash"), default="fish",
+                        help="shell integration (default: fish, for existing installations)")
+    parser.add_argument("--function-dir", type=Path, help="override the shell entry-link directory")
     parser.add_argument("--python", type=Path, default=shutil.which("python3.12"))
     parser.add_argument("--cache-dir", type=Path)
     parser.add_argument("--offline", action="store_true")
@@ -214,12 +220,14 @@ def main(argv=None):
     mode.add_argument("--plan", action="store_true", help="show the intended paths without changing files")
     mode.add_argument("--uninstall", action="store_true", help="remove the managed link and move the app to Trash")
     args = parser.parse_args(argv)
-    prefix, functions = args.prefix.expanduser().absolute(), args.function_dir.expanduser().absolute()
+    prefix = args.prefix.expanduser().absolute()
+    default_functions = DEFAULT_FUNCTIONS if args.shell == "fish" else Path.home() / ".config/signing-tools"
+    functions = (args.function_dir or default_functions).expanduser().absolute()
     try:
         if args.plan:
             state_at(prefix)
             print(f"Application directory: {prefix}")
-            print(f"Fish autoload link: {functions / 'signpdf.fish'}")
+            print(f"Shell entry link: {functions / ('signpdf.fish' if args.shell == 'fish' else 'commands.sh')}")
             print("Existing signp7m, shell configuration, PATH and macOS reader preferences are preserved.")
             return 0
         if args.uninstall:
@@ -228,7 +236,7 @@ def main(argv=None):
             uv = shutil.which("uv")
             if not uv or not args.python:
                 raise InstallError("existing uv and Python 3.12 are required; no global software is installed automatically")
-            install(SOURCE, prefix, functions, args.python, uv, args.cache_dir, args.offline)
+            install(SOURCE, prefix, functions, args.python, uv, args.cache_dir, args.offline, args.shell)
         return 0
     except InstallError as error:
         print(f"Error: {error}", file=sys.stderr)

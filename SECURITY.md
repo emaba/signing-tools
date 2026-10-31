@@ -25,6 +25,16 @@
 
 ## Files and verification
 
+The Zsh/Bash integration in `signing-tools.sh` loads private settings only in
+each command's subshell. Its settings contain a 1Password reference, never the
+PIN. `signp7m.py` is a shell-independent CAdES port: it uses a private snapshot,
+removes unrelated reference-valued environment entries from subprocesses and
+provides `PKCS11_PIN` only to the `op run` signing child. Subprocess diagnostics
+are suppressed to prevent token information from reaching the terminal.
+The OpenSSL provider necessarily receives the resolved PIN while signing.
+Its generated-key tests are not smart-card or 1Password acceptance tests.
+The original Fish implementation remains available and unchanged.
+
 - A mode-`700` temporary directory is created beside the output. It temporarily
   holds the public certificate, signed document, and extracted document. The
   final signed file is set to mode `600`. Its embedded certificate may reveal

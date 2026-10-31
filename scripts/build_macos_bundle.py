@@ -19,7 +19,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = ("START-HERE.md", "FOR-CLAUDE.md", "settings.example.fish",
-             "install-fish-extras.fish", "check-setup.py")
+             "install-fish-extras.fish", "check-setup.py", "settings.example.sh", "install-shell-extras.py")
 DEFAULT_FONTS = (
     Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
     Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
@@ -46,7 +46,8 @@ def safe_source_name(name):
     if any(part in (".git", ".venv", ".venv-signpdf", ".venv-packaging", "__pycache__") for part in path.parts):
         raise BundleError("the source archive contains a development or Git directory")
     if (path.suffix.lower() in PRIVATE_SUFFIXES or path.name == ".env"
-            or path.name.startswith(".env.") or path.name.endswith(".local.fish")):
+            or path.name.startswith(".env.") or path.name.endswith((".local.fish", ".local.sh"))
+            or path.name == "settings.sh"):
         raise BundleError("the source archive contains a document or local credential/configuration file")
     return path
 

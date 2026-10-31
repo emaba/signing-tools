@@ -5,6 +5,8 @@
 config.local.fish
 signp7m.local.fish
 *.local.fish
+*.local.sh
+/settings.sh
 *credentials*
 *secrets*
 

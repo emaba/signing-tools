@@ -10,6 +10,8 @@ working-tree edits are never included. Commit reviewed changes before building.
   including Homebrew dependencies, SafeDive, 1Password and sample signing.
 - `packaging/macos/FOR-CLAUDE.md`: bounded installation handoff for an assistant;
   PIN entry and 1Password approval remain with the owner.
+- `packaging/macos/install-shell-extras.py` and `settings.example.sh`: fresh
+  Zsh/Bash configuration without Fish. The primary guide uses this integration.
 - `packaging/macos/install-fish-extras.fish`: creates missing P7M/config files
   while preserving existing functions and reference settings.
 - `packaging/macos/settings.example.fish`: reference-only template and matched
@@ -52,6 +54,11 @@ The metadata records the exact source commit, build date, renderer version,
 font hashes and PDF page counts. Runtime dependencies are downloaded by the
 documented Homebrew/Python steps; vendor middleware and 1Password are not
 redistributed. This is not an offline installer.
+
+Fish is not a runtime dependency of the primary Zsh/Bash setup. The ZIP also
+retains the optional Fish files for existing users. The Python CAdES port uses
+the same OpenSSL/PKCS#11 pipeline and requires a first recipient-run hardware
+sample test, separately from the generated-key software and shell tests.
 
 The default document fonts are the existing macOS Arial, Arial Bold and Menlo
 files. Their used subsets are embedded in the PDF; full system font files are

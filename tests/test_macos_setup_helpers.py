@@ -68,7 +68,7 @@ class SetupHelperTests(unittest.TestCase):
         (provider / "pkcs11prov.dylib").touch()
         module = self.root / "middleware.dylib"
         module.touch()
-        for name in ("fish", "python3.12", "uv", "pkcs11-tool", "op"):
+        for name in ("python3.12", "uv", "pkcs11-tool", "op"):
             path = binary / name
             path.write_text("#!/bin/sh\nexit 99\n")
             path.chmod(0o700)

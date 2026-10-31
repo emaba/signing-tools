@@ -100,6 +100,38 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(run.call_count, 1)  # Existing Python version check only.
         self.assertEqual(len(list((self.prefix / "releases").iterdir())), 1)
 
+    def test_zsh_and_bash_install_update_failure_and_uninstall(self):
+        for shell in ("zsh", "bash"):
+            with self.subTest(shell=shell):
+                prefix, commands = self.root / shell, self.root / (shell + "-integration")
+                commands.mkdir(parents=True)
+                entry = commands / "commands.sh"
+                entry.write_text("SYNTHETIC ORIGINAL SHELL ENTRY\n")
+                with patch.object(installer, "run", side_effect=self.fake_run), redirect_stdout(StringIO()):
+                    installer.install(self.source, prefix, commands, "python3.12", "uv", shell=shell)
+                self.assertEqual(entry.resolve(), (prefix / "current/app/signing-tools.sh").resolve())
+                before = (prefix / "install.json").read_bytes()
+                runtime = self.source / "signpdf.py"
+                runtime.write_text(runtime.read_text() + "SYNTHETIC UPDATE\n")
+                def fail(command, message):
+                    if command[1:3] == ["pip", "install"]:
+                        raise installer.InstallError("synthetic download failure")
+                    return self.fake_run(command, message)
+                with patch.object(installer, "run", side_effect=fail), self.assertRaises(installer.InstallError):
+                    installer.install(self.source, prefix, commands, "python3.12", "uv", shell=shell)
+                self.assertEqual((prefix / "install.json").read_bytes(), before)
+                with redirect_stdout(StringIO()):
+                    installer.uninstall(prefix, self.root / "Trash")
+                self.assertEqual(entry.read_text(), "SYNTHETIC ORIGINAL SHELL ENTRY\n")
+                self.assertEqual(self.legacy.read_text(), "SYNTHETIC EXISTING CADES FUNCTION\n")
+
+    def test_shell_switch_does_not_overwrite_existing_fish_install(self):
+        self.install()
+        before = (self.prefix / "install.json").read_bytes()
+        with self.assertRaises(installer.InstallError):
+            installer.install(self.source, self.prefix, self.root / "zsh", "python3.12", "uv", shell="zsh")
+        self.assertEqual((self.prefix / "install.json").read_bytes(), before)
+
 
 if __name__ == "__main__":
     unittest.main()

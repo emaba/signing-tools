@@ -1,9 +1,14 @@
 # signp7m
 
-A Fish function for signing a PDF as an attached, binary DER CAdES `.p7m`
-document on macOS with an InfoCert DS4 smart card and SafeDive middleware.
+Sign a PDF as an attached, binary DER CAdES `.p7m` document on macOS with an
+InfoCert DS4 smart card and SafeDive middleware. Zsh and Bash use a Python
+command; the original Fish function remains supported. Fish is optional.
 The private key stays on the card. 1Password CLI automatically retrieves the
 PIN through `op run`, after any authorization required by 1Password.
+
+For a new Mac, follow the package's English `START-HERE` guide, which uses
+Zsh without installing Fish. See [Zsh/Bash installation](docs/shells.md).
+The existing Fish installation procedure remains available below.
 
 ```fish
 signp7m document.pdf

@@ -17,7 +17,7 @@ def main():
         good = good and passed
         print(f"{'PASS' if passed else 'FAIL'}: {label}")
 
-    for command in ("brew", "fish", "python3.12", "uv", "openssl", "pkcs11-tool", "op"):
+    for command in ("brew", "python3.12", "uv", "openssl", "pkcs11-tool", "op"):
         report(command + " is available", shutil.which(command) is not None)
 
     reference = os.environ.get("SIGNP7M_PIN_REF", "")
