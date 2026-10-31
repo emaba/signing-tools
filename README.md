@@ -39,6 +39,11 @@ For an isolated permanent macOS installation with one application directory
 and one Fish link, see [permanent installation](docs/installation.md).
 The installer preserves the existing `signp7m` function and its configuration.
 
+For a new Mac or an assistant-guided setup, the shareable package includes an
+English guide, Homebrew/1Password instructions, helpers and an unsigned sample.
+See [recreate the macOS installation package](docs/distribution.md) for the
+maintained inputs and the command to regenerate the PDF/ZIP with checksums.
+
 ## Provenance and verification status
 
 The starting implementation is the locally installed `signp7m.fish` associated

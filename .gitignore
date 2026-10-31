@@ -31,3 +31,7 @@ __pycache__/
 .venv/
 .venv-signpdf/
 .signpdf.*/
+
+# Generated distribution artifacts and optional packaging environment
+/dist/
+/.venv-packaging/
