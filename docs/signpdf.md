@@ -39,6 +39,31 @@ revocation, and trusted timestamps remain unvalidated. These results do not
 establish compatibility with every reader, PDF, or middleware version. This
 program never changes macOS reader preferences.
 
+### Compatible PDF parsing
+
+PDF reading defaults to compatible mode in both pypdf and pyHanko, including
+the incremental writer and final verification. This permits recoverable syntax
+and cross-reference issues such as generation-zero free entries left by an
+earlier incremental save. It signs the original byte snapshot incrementally;
+it does not normalize, flatten or rewrite the input or its earlier revisions.
+
+Use `signpdf document.pdf --strict-pdf` to restore strict syntax/xref parsing
+throughout the workflow, including the isolated signing worker. This option
+is independent of visible/invisible or graphical placement modes.
+
+Compatible parsing does not skip signature validation: cryptographic integrity,
+complete byte coverage, prior signatures, permitted changes, certification
+locks and PAdES attributes are still checked. Encrypted or unreadable inputs
+remain unsupported, and pyHanko's default stream decoding limits stay active.
+Compatibility does not establish PDF standards conformance or guarantee that
+every malformed document can be signed.
+
+Regression tests use a generated PDF with a non-initial generation-zero free
+xref entry. Compatible mode adds and verifies two signatures while preserving
+all original bytes; strict mode rejects the same input before authentication.
+Tampering is rejected in compatible mode too. No user document, certificate
+or card credential is included in these fixtures.
+
 On October 28, 2026, all 56 automated tests passed using Python 3.12.16.
 This includes the existing CAdES tests, synthetic cryptographic PDF tests,
 and a PKCS#11 adapter test using substitutes. Visible appearances were also

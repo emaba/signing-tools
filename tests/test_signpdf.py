@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import re
 import stat
 import sys
 import tempfile
@@ -101,9 +102,44 @@ class PDFTestBase(unittest.TestCase):
     def args(self, *extra):
         return signpdf.parser().parse_args([str(self.source), *extra])
 
+    def append_legacy_free_xref(self):
+        """Synthetic incremental save with a generation-zero free xref entry."""
+        data = self.source.read_bytes()
+        reader = pypdf.PdfReader(self.source)
+        root = reader.trailer.raw_get("/Root")
+        previous = int(re.findall(rb"startxref\s+(\d+)", data)[-1])
+        unused = int(reader.trailer["/Size"])
+        prefix = data + b"\n"
+        update = (f"xref\n{unused} 1\n0000000000 00000 f \ntrailer\n"
+                  f"<< /Size {unused + 1} /Root {root.idnum} {root.generation} R /Prev {previous} >>\n"
+                  f"startxref\n{len(prefix)}\n%%EOF\n").encode()
+        self.source.write_bytes(prefix + update)
+
 
 @unittest.skipUnless(pypdf, "pypdf is required for layout and file-safety tests")
 class PDFCase(PDFTestBase):
+    def test_unrecoverable_pdf_still_fails_before_credentials(self):
+        self.source.write_bytes(b"SYNTHETIC INVALID PDF\n")
+        with patch.object(signpdf, "signing_settings") as settings, \
+             patch.object(signpdf, "authenticate_and_sign") as auth:
+            with self.assertRaises(Exception):
+                signpdf.execute(self.args("--invisible"))
+        settings.assert_not_called()
+        auth.assert_not_called()
+
+    def test_encrypted_pdf_still_fails_before_credentials(self):
+        writer = pypdf.PdfWriter()
+        writer.add_blank_page(width=600, height=800)
+        writer.encrypt("SYNTHETIC TEST PASSWORD")
+        with self.source.open("wb") as stream:
+            writer.write(stream)
+        with patch.object(signpdf, "signing_settings") as settings, \
+             patch.object(signpdf, "authenticate_and_sign") as auth:
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.execute(self.args("--invisible"))
+        settings.assert_not_called()
+        auth.assert_not_called()
+
     def test_lists_canonical_signature_field_without_authentication(self):
         self.create_pdf(self.source, field="SupplierSignature")
         output = io.StringIO()
@@ -448,6 +484,70 @@ class CryptographicPDFTests(PDFTestBase):
         signpdf.check_original_prefix(self.source, output)
         self.assertEqual(signpdf.verify_pdf(output, {"Signature1"}, "Signature1"), {"Signature1"})
 
+    def test_compatible_pipeline_preserves_legacy_xrefs_and_two_signatures(self):
+        from pyhanko.pdf_utils.misc import PdfStrictReadError
+        self.append_legacy_free_xref()
+        original = self.source.read_bytes()
+        with self.assertRaises(PdfStrictReadError):
+            signpdf.verify_pdf(self.source, strict_pdf=True)
+        self.assertEqual(signpdf.verify_pdf(self.source), set())
+        def synthetic_card_sign(source, staged, placement, *unused):
+            self.assertFalse(placement.strict_pdf)
+            signpdf.write_signed_pdf(source, staged, placement, self.signer)
+        first, second = self.root / "first.pdf", self.root / "second.pdf"
+        with patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "authenticate_and_sign", side_effect=synthetic_card_sign), \
+             redirect_stdout(io.StringIO()):
+            self.assertEqual(signpdf.execute(self.args("--invisible", "-o", str(first))), 0)
+            args = signpdf.parser().parse_args([str(first), "--invisible", "-o", str(second)])
+            self.assertEqual(signpdf.execute(args), 0)
+        self.assertEqual(self.source.read_bytes(), original)
+        signpdf.check_original_prefix(self.source, first)
+        signpdf.check_original_prefix(first, second)
+        expected = {"Signature1", "Signature2"}
+        self.assertEqual(signpdf.verify_pdf(second, expected, "Signature2"), expected)
+        self.assertEqual(list(self.root.glob(".signpdf.*")), [])
+
+    def test_strict_mode_rejects_legacy_xrefs_before_credentials(self):
+        from pyhanko.pdf_utils.misc import PdfStrictReadError
+        self.append_legacy_free_xref()
+        with patch.object(signpdf, "signing_settings") as settings, \
+             patch.object(signpdf, "authenticate_and_sign") as auth:
+            with self.assertRaises(PdfStrictReadError):
+                signpdf.execute(self.args("--invisible", "--strict-pdf"))
+        settings.assert_not_called()
+        auth.assert_not_called()
+        self.assertEqual(list(self.root.glob(".signpdf.*")), [])
+
+    def test_compatible_mode_rejects_tampering_before_credentials(self):
+        self.append_legacy_free_xref()
+        signed = self.root / "signed.pdf"
+        signpdf.write_signed_pdf(self.source, signed, signpdf.Placement("Signature1", False), self.signer)
+        data = signed.read_bytes()
+        self.assertTrue(data.startswith(b"%PDF-1."))
+        # Keep a parseable header but alter bytes covered by the signature.
+        signed.write_bytes(data[:7] + (b"4" if data[7:8] != b"4" else b"5") + data[8:])
+        with self.assertRaises(signpdf.SignPDFError):
+            signpdf.verify_pdf(signed)
+        args = signpdf.parser().parse_args([str(signed), "--invisible"])
+        with patch.object(signpdf, "signing_settings") as settings, \
+             patch.object(signpdf, "authenticate_and_sign") as auth:
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.execute(args)
+        settings.assert_not_called()
+        auth.assert_not_called()
+
+    def test_strict_mode_signs_well_formed_pdf(self):
+        def synthetic_card_sign(source, staged, placement, *unused):
+            self.assertTrue(placement.strict_pdf)
+            signpdf.write_signed_pdf(source, staged, placement, self.signer)
+        with patch.object(signpdf, "signing_settings", return_value={}), \
+             patch.object(signpdf, "authenticate_and_sign", side_effect=synthetic_card_sign), \
+             redirect_stdout(io.StringIO()):
+            self.assertEqual(signpdf.execute(self.args("--invisible", "--strict-pdf")), 0)
+        output = self.root / "document.signed.pdf"
+        self.assertEqual(signpdf.verify_pdf(output, {"Signature1"}, "Signature1", strict_pdf=True), {"Signature1"})
+
     def test_default_graphical_pipeline_signs_the_selected_third_page(self):
         from pypdf import PdfWriter
         from pypdf.generic import NameObject, NumberObject
@@ -616,7 +716,7 @@ class CryptographicPDFTests(PDFTestBase):
         request = self.root / "request.json"
         request.write_text(json.dumps(dict(settings=settings, source=str(self.source),
                                           output=str(self.root / "signed.pdf"),
-                                          placement=dict(field="Signature1", existing=False))))
+                                          placement=dict(field="Signature1", existing=False, strict_pdf=True))))
         with patch.dict(os.environ, {signpdf.PIN_ENV: "SYNTHETIC_TEST_PIN"}, clear=True), \
              patch.object(pkcs11, "lib") as library, \
              patch("pyhanko.sign.pkcs11.PKCS11Signer") as signer_factory, \
@@ -629,6 +729,7 @@ class CryptographicPDFTests(PDFTestBase):
             self.assertEqual(signer_factory.call_args.kwargs["key_id"], b"\x01\x02")
             self.assertEqual(signer_factory.call_args.kwargs["cert_id"], b"\x03\x04")
             write.assert_called_once()
+            self.assertTrue(write.call_args.args[2].strict_pdf)
 
     def test_worker_rejects_unresolved_reference_before_loading_module(self):
         with patch.dict(os.environ, {signpdf.PIN_ENV: "op://TEST_VAULT/TEST_ITEM/TEST_FIELD"}, clear=True):

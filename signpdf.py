@@ -44,6 +44,7 @@ class Placement:
     box: tuple[float, float, float, float] | None = None
     rotation: int = 0
     appearance: dict | None = None
+    strict_pdf: bool = False
 
 
 def rectangle(value: str) -> tuple[float, float, float, float]:
@@ -62,6 +63,8 @@ def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Sign a PDF using a smart card (PAdES).")
     p.add_argument("input", type=Path, help="input PDF; never overwritten")
     p.add_argument("-o", "--output", type=Path, help="output PDF (default: INPUT.signed.pdf)")
+    p.add_argument("--strict-pdf", action="store_true",
+                   help="reject recoverable PDF syntax/xref issues (default: compatible parsing)")
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--graphical", action="store_true", help="choose page and rectangle in a local browser (default)")
     mode.add_argument("--list-fields", action="store_true", help="list signature fields without authentication")
@@ -81,12 +84,12 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
-def pdf_reader(path: Path):
+def pdf_reader(path: Path, *, strict_pdf: bool = False):
     try:
         from pypdf import PdfReader
     except ImportError:
         raise SignPDFError("missing pypdf; install requirements-signpdf.txt in the signpdf environment") from None
-    reader = PdfReader(str(path), strict=True)
+    reader = PdfReader(str(path), strict=strict_pdf)
     if reader.is_encrypted:
         raise SignPDFError("encrypted PDFs are not supported in this version")
     if not len(reader.pages):
@@ -328,14 +331,15 @@ def require_signing_dependencies():
 
 
 def verify_pdf(path: Path, expected_names: set[str] | None = None,
-               new_field: str | None = None) -> set[str]:
+               new_field: str | None = None, *, strict_pdf: bool = False) -> set[str]:
     from pyhanko.pdf_utils.reader import PdfFileReader
     from pyhanko.sign.validation import validate_pdf_signature
     from pyhanko.sign.validation.status import SignatureCoverageLevel
     from pyhanko_certvalidator import ValidationContext
 
     with path.open("rb") as stream:
-        reader = PdfFileReader(stream)
+        # Syntax tolerance never skips signature or permitted-change validation.
+        reader = PdfFileReader(stream, strict=strict_pdf)
         names = set()
         for signature in reader.embedded_signatures:
             if str(signature.sig_object_type) != "/Sig":
@@ -410,7 +414,7 @@ def write_signed_pdf(source: Path, destination: Path, placement: Placement, sign
     with source.open("rb") as incoming, destination.open("wb") as outgoing:
         PdfSigner(metadata, signer=signer, new_field_spec=field,
                   stamp_style=appearance_style(placement.rotation, settings)).sign_pdf(
-            IncrementalPdfFileWriter(incoming), existing_fields_only=placement.existing,
+            IncrementalPdfFileWriter(incoming, strict=placement.strict_pdf), existing_fields_only=placement.existing,
             output=outgoing, appearance_text_params=text_params,
         )
 
@@ -503,7 +507,7 @@ def execute(args) -> int:
     if args.list_fields:
         if args.output is not None:
             raise SignPDFError("--output cannot be used with --list-fields")
-        fields = signature_fields(pdf_reader(source))
+        fields = signature_fields(pdf_reader(source, strict_pdf=args.strict_pdf))
         if not fields:
             print("No signature fields found.")
         for name, field in fields.items():
@@ -513,7 +517,7 @@ def execute(args) -> int:
     destination = output_path(source, args.output)
     identity = file_identity(destination)
     # Parse layout before asking for authentication or replacement approval.
-    reader = pdf_reader(source)
+    reader = pdf_reader(source, strict_pdf=args.strict_pdf)
     if graphical:
         page_index(args.page, len(reader.pages))
     else:
@@ -526,9 +530,9 @@ def execute(args) -> int:
         with source.open("rb") as incoming, snapshot.open("xb") as outgoing:
             os.chmod(snapshot, 0o600)
             shutil.copyfileobj(incoming, outgoing)
-        reader = pdf_reader(snapshot)
+        reader = pdf_reader(snapshot, strict_pdf=args.strict_pdf)
         check_certification(reader)
-        previous = verify_pdf(snapshot)
+        previous = verify_pdf(snapshot, strict_pdf=args.strict_pdf)
         if graphical:
             try:
                 number, rect = choose_graphical(snapshot, graphical_pages(reader),
@@ -540,10 +544,10 @@ def execute(args) -> int:
             # Apply the same bounds/conversion checks as explicit CLI placement.
             selected = argparse.Namespace(**vars(args))
             selected.page, selected.rect_mm = str(number), rect
-            placement = replace(choose_placement(selected, reader), appearance=appearance)
+            placement = replace(choose_placement(selected, reader), appearance=appearance, strict_pdf=args.strict_pdf)
             print(f"Selected page: {number}; rectangle (mm): " + ",".join(f"{n:.3f}" for n in rect))
         else:
-            placement = replace(choose_placement(args, reader), appearance=appearance)
+            placement = replace(choose_placement(args, reader), appearance=appearance, strict_pdf=args.strict_pdf)
         settings = signing_settings()
         if identity is not None:
             print(f"The output file already exists:\n{destination}")
@@ -559,7 +563,8 @@ def execute(args) -> int:
         authenticate_and_sign(snapshot, staged, placement, settings, directory)
         print("Verifying PDF signatures and permitted changes...")
         check_original_prefix(snapshot, staged)
-        verify_pdf(staged, expected_names=previous | {placement.field}, new_field=placement.field)
+        verify_pdf(staged, expected_names=previous | {placement.field}, new_field=placement.field,
+                   strict_pdf=args.strict_pdf)
         publish(staged, destination, identity)
     print("\nSignature completed successfully.")
     print("Cryptographic integrity: PASSED")

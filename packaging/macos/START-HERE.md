@@ -2,7 +2,7 @@
 
 ## A practical installation guide
 
-Guide reviewed 31 October 2026. See `PACKAGE-INFO.json` for the bundle build date and exact source revision.
+Guide reviewed 5 November 2026. See `PACKAGE-INFO.json` for the bundle build date and exact source revision.
 
 This package installs two commands: `signp7m` produces a signed `.p7m` file;
 `signpdf` produces a signed PDF and normally opens a graphical placement window.
@@ -284,6 +284,9 @@ signpdf document.pdf --page 2 --rect-mm 85,245,110,27 \
 # No visible box
 signpdf document.pdf --invisible -o document.invisible.pdf
 
+# Optional: reject recoverable PDF syntax/xref issues
+signpdf document.pdf --strict-pdf
+
 # Add another signature while preserving an earlier one
 signpdf document.visible.pdf --invisible -o document.twice.pdf
 
@@ -297,6 +300,8 @@ confirmation. Cancel in the browser or press Ctrl+C to stop placement; closing
 the tab alone leaves the terminal waiting until the placement timeout.
 
 These tools check cryptographic integrity and selected structural properties.
+PDF reading tolerates recoverable syntax issues by default; signature and
+permitted-change checks still run. Use `--strict-pdf` for strict PDF parsing.
 They do not establish certificate trust, revocation or a trusted timestamp.
 Use the recipient's required verifier for acceptance. A success message is
 not a general certificate-trust or legal-qualification assessment.

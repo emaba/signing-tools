@@ -60,6 +60,14 @@ The original Fish implementation remains available and unchanged.
 
 ## Companion PAdES command
 
+PDF syntax parsing defaults to compatible mode (`strict=False`) for layout,
+incremental writing and signature verification. This tolerates recoverable
+xref issues without rewriting the input snapshot. `--strict-pdf` selects strict
+parsing consistently across the parent and signing worker. Neither mode skips
+cryptographic integrity, full coverage, prior-signature/permitted-change or
+certification checks. The default stream decoding limits are unchanged.
+Unreadable inputs and failed validation still prevent output publication.
+
 `signpdf` uses a separate PKCS#11 signing worker. Only that worker receives
 the resolved PIN from `op run`; it removes the PIN environment variable before
 opening the token session. The temporary JSON request contains public signing

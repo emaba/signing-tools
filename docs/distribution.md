@@ -33,18 +33,19 @@ Use an existing Python 3.12 and uv. From the repository in Fish:
 uv venv --python python3.12 .venv-packaging
 uv pip install --python .venv-packaging/bin/python -r requirements-packaging.txt
 .venv-packaging/bin/python scripts/build_macos_bundle.py \
-    --ref HEAD --date 2026-10-31
+    --ref HEAD --date 2026-11-05
 ```
 
-The example date reproduces the original handoff date. For a newer release,
+The example date is the compatible-parsing package date. For an older handoff,
+select its recorded source commit and build date together. For a newer release,
 provide the intended ISO build date, or omit `--date` to use the selected
 commit's date. `--ref` also accepts a reviewed tag or commit SHA.
 
 The output defaults to `dist/` and can be changed with `--output-dir PATH`:
 
 ```text
-dist/signing-tools-macos-2026-10-31.zip
-dist/signing-tools-macos-2026-10-31.zip.sha256
+dist/signing-tools-macos-2026-11-05.zip
+dist/signing-tools-macos-2026-11-05.zip.sha256
 ```
 
 The ZIP has one top-level `signing-tools-macos` folder. It contains the complete
@@ -74,7 +75,7 @@ the metadata makes the relevant inputs inspectable.
 
 ```fish
 cd dist
-shasum -a 256 -c signing-tools-macos-2026-10-31.zip.sha256
+shasum -a 256 -c signing-tools-macos-2026-11-05.zip.sha256
 ```
 
 After extracting the ZIP, run `shasum -a 256 -c SHA256SUMS.txt` from its

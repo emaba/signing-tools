@@ -40,6 +40,11 @@ signature details; it is the default for graphical placement. See the guide
 for installation,
 verification limits, and multiple signatures.
 
+PDF syntax parsing is compatible by default, allowing recoverable xref issues
+without rewriting the original bytes. Use `--strict-pdf` for strict syntax
+parsing. Cryptographic, prior-signature and permitted-change checks still run
+in both modes; see [compatible parsing](docs/signpdf.md#compatible-pdf-parsing).
+
 For an isolated permanent macOS installation with one application directory
 and one Fish link, see [permanent installation](docs/installation.md).
 The installer preserves the existing `signp7m` function and its configuration.
