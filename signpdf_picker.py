@@ -45,7 +45,7 @@ def selection_mm(payload, pages):
 
 
 class PlacementSession:
-    def __init__(self, source, pages, initial_page, title, appearance):
+    def __init__(self, source, pages, initial_page, title, appearance, *, warnings=()):
         try:
             import pypdfium2 as pdfium
             from PIL import Image  # noqa: F401
@@ -62,6 +62,7 @@ class PlacementSession:
             raise PickerError("PDF forms could not be prepared for preview") from None
         self.pages, self.initial_page = pages, initial_page
         self.title, self.appearance = title, appearance
+        self.warnings = list(warnings)
         self.token = secrets.token_urlsafe(32)
         self.lock = threading.RLock()
         self.done = threading.Event()
@@ -71,7 +72,7 @@ class PlacementSession:
     def info(self):
         return dict(title=self.title, initial_page=self.initial_page,
                     pages=[{k: page[k] for k in ("width_mm", "height_mm")} for page in self.pages],
-                    style=self.appearance.get("style", "simple"))
+                    style=self.appearance.get("style", "simple"), warnings=self.warnings)
 
     def render(self, index):
         # PDFium is not thread-safe. Serialize every use of the document.
@@ -220,8 +221,8 @@ def make_server(session):
     return server
 
 
-def choose_graphical(source, pages, initial_page, title, appearance, *, open_browser=True, ready=None, timeout=1800):
-    session = PlacementSession(source, pages, initial_page, title, appearance)
+def choose_graphical(source, pages, initial_page, title, appearance, *, warnings=(), open_browser=True, ready=None, timeout=1800):
+    session = PlacementSession(source, pages, initial_page, title, appearance, warnings=warnings)
     server = thread = None
     try:
         server = make_server(session)

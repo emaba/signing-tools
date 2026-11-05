@@ -58,6 +58,16 @@ remain unsupported, and pyHanko's default stream decoding limits stay active.
 Compatibility does not establish PDF standards conformance or guarantee that
 every malformed document can be signed.
 
+Compatible mode also probes strict parsing of the private snapshot. If a
+strict parser rejects it, Terminal prints a structure warning with the reader,
+a diagnostic code and a safe explanation. Graphical placement shows the same
+reasons in an amber warning banner above the page controls. Placement remains
+available; review the pages before confirming. A generation-zero free entry
+in a later revision is identified explicitly. Unknown parser failures use a
+generic reason instead of exposing raw exceptions or document contents.
+No warning means these strict probes passed, not that PDF/PDF-A conformance
+has been certified.
+
 Regression tests use a generated PDF with a non-initial generation-zero free
 xref entry. Compatible mode adds and verifies two signatures while preserving
 all original bytes; strict mode rejects the same input before authentication.

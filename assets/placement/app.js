@@ -7,6 +7,18 @@ let pageImage = null;
 const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
 const paper = () => info.pages[page - 1];
 
+function showStructureWarnings(warnings) {
+  const reasons = $('structureWarningReasons');
+  reasons.replaceChildren();
+  for (const warning of warnings) {
+    const item = document.createElement('li');
+    // Diagnostics are text, never HTML or raw parser exception payloads.
+    item.textContent = `${warning.reader}: ${warning.message}`;
+    reasons.append(item);
+  }
+  $('structureWarning').hidden = warnings.length === 0;
+}
+
 function update() {
   box.hidden = !rect;
   $('confirm').disabled = !rect || loading;
@@ -189,6 +201,7 @@ $('cancel').addEventListener('click', () => finish(true));
   try {
     const response = await fetch('api/info'); if (!response.ok) throw Error();
     info = await response.json();
+    showStructureWarnings(info.warnings || []);
     $('documentName').textContent = info.title;
     $('pageCount').textContent = `of ${info.pages.length}`;
     $('pageNumber').max = info.pages.length;

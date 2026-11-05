@@ -5,13 +5,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-async function fixture() {
+async function fixture(warnings = []) {
   const elements = new Map(), posts = [];
   const document = {activeElement: null};
   class Element {
     constructor(id) {
       this.id = id; this.value = ''; this.style = {}; this.dataset = {};
       this.hidden = false; this.disabled = false; this.events = new Map();
+      this.children = [];
       this.clientWidth = 900; this.clientHeight = 1000;
       this.classList = {toggle() {}};
     }
@@ -22,6 +23,8 @@ async function fixture() {
     focus() { document.activeElement = this; }
     prepend() {}
     replaceWith() {}
+    replaceChildren(...children) { this.children = children; }
+    append(...children) { this.children.push(...children); }
     setCustomValidity(message) { this.validationMessage = message; }
     reportValidity() {}
   }
@@ -29,6 +32,7 @@ async function fixture() {
     if (!elements.has(id)) elements.set(id, new Element(id));
     return elements.get(id);
   };
+  document.createElement = tag => new Element(tag);
   const get = document.getElementById;
   get('zoom').value = 'fit';
   class Image extends Element {
@@ -38,7 +42,7 @@ async function fixture() {
   const fetch = async (url, options) => {
     if (options) posts.push({url, body: JSON.parse(options.body)});
     return {ok: true, json: async () => ({title: 'Synthetic test.pdf', initial_page: 3,
-      pages: Array.from({length: 3}, () => ({width_mm: 210, height_mm: 297})), style: 'split'})};
+      pages: Array.from({length: 3}, () => ({width_mm: 210, height_mm: 297})), style: 'split', warnings})};
   };
   const source = fs.readFileSync(path.join(__dirname, '../assets/placement/app.js'), 'utf8');
   vm.runInNewContext(source, {document, window: {addEventListener() {}}, Image, fetch});
@@ -98,4 +102,30 @@ test('changing pages clears the selected box and prevents submitting it on anoth
   assert.equal(get('confirm').disabled, true);
   await get('confirm').emit('click');
   assert.equal(posts.length, 0);
+});
+
+test('well-formed documents hide the structural warning', async () => {
+  const {get} = await fixture();
+  assert.equal(get('structureWarning').hidden, true);
+  assert.equal(get('structureWarningReasons').children.length, 0);
+});
+
+test('structural warning explains the cause and still permits placement', async () => {
+  const message = 'A later PDF revision marks a free xref entry with generation 0.';
+  const {get, posts} = await fixture([{reader: 'pyHanko', code: 'free-xref-generation-zero', message}]);
+  assert.equal(get('structureWarning').hidden, false);
+  assert.equal(get('structureWarningReasons').children[0].textContent, `pyHanko: ${message}`);
+  await get('addBox').emit('click');
+  enter(get, [85, 245, 110, 27]);
+  await get('confirm').emit('click');
+  assert.equal(posts.length, 1);
+  assertSelection(posts[0].body);
+});
+
+test('warning text is rendered literally rather than inserted as HTML', async () => {
+  const message = '<img src=x onerror=syntheticTest()> diagnostic';
+  const {get} = await fixture([{reader: 'Test reader', message}]);
+  const item = get('structureWarningReasons').children[0];
+  assert.equal(item.textContent, `Test reader: ${message}`);
+  assert.equal(item.innerHTML, undefined);
 });

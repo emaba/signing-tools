@@ -302,6 +302,9 @@ the tab alone leaves the terminal waiting until the placement timeout.
 These tools check cryptographic integrity and selected structural properties.
 PDF reading tolerates recoverable syntax issues by default; signature and
 permitted-change checks still run. Use `--strict-pdf` for strict PDF parsing.
+If strict checks fail, Terminal and an amber preview banner explain the
+structural issue. Review the pages before continuing; this is not a full
+PDF/PDF-A conformance assessment.
 They do not establish certificate trust, revocation or a trusted timestamp.
 Use the recipient's required verifier for acceptance. A success message is
 not a general certificate-trust or legal-qualification assessment.

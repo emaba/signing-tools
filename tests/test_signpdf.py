@@ -118,6 +118,35 @@ class PDFTestBase(unittest.TestCase):
 
 @unittest.skipUnless(pypdf, "pypdf is required for layout and file-safety tests")
 class PDFCase(PDFTestBase):
+    def test_legacy_xref_warning_is_printed_and_sent_to_graphical_picker(self):
+        self.append_legacy_free_xref()
+        terminal = io.StringIO()
+        with patch.object(signpdf, "choose_graphical", side_effect=signpdf.PickerCancelled) as picker, \
+             patch.object(signpdf, "signing_settings") as settings, \
+             redirect_stderr(terminal), redirect_stdout(io.StringIO()):
+            self.assertEqual(signpdf.execute(self.args()), 0)
+        issues = picker.call_args.kwargs["warnings"]
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0]["code"], "free-xref-generation-zero")
+        self.assertIn("generation 0", issues[0]["message"])
+        self.assertIn(issues[0]["message"], terminal.getvalue())
+        self.assertIn("continuing in compatible mode", terminal.getvalue())
+        settings.assert_not_called()
+        self.assertEqual(list(self.root.glob(".signpdf.*")), [])
+
+    def test_well_formed_pdf_has_no_structure_warnings(self):
+        self.assertEqual(signpdf.structure_warnings(self.source), [])
+
+    def test_raw_parser_diagnostics_are_never_reported(self):
+        marker = "SYNTHETIC_PRIVATE_PDF_PAYLOAD"
+        for message in (marker, "Multiple definitions in dictionary " + marker,
+                        "xref table contains " + marker):
+            issue = signpdf.structure_issue(Exception(message), "pypdf")
+            terminal = io.StringIO()
+            with redirect_stderr(terminal):
+                signpdf.report_structure_warnings([issue])
+            self.assertNotIn(marker, json.dumps(issue) + terminal.getvalue())
+
     def test_unrecoverable_pdf_still_fails_before_credentials(self):
         self.source.write_bytes(b"SYNTHETIC INVALID PDF\n")
         with patch.object(signpdf, "signing_settings") as settings, \
@@ -563,7 +592,8 @@ class CryptographicPDFTests(PDFTestBase):
             self.assertEqual(placement.rotation, 90)
             self.assertEqual(placement.appearance["style"], "split")
             signpdf.write_signed_pdf(source, staged, placement, self.signer)
-        def select(source, pages, initial_page, title, style):
+        def select(source, pages, initial_page, title, style, *, warnings):
+            self.assertEqual(warnings, [])
             self.assertEqual(initial_page, 3)
             self.assertEqual(source.read_bytes(), self.source.read_bytes())
             self.assertEqual(stat.S_IMODE(source.stat().st_mode), 0o600)

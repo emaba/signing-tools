@@ -13,6 +13,14 @@
     <div><h1>Place your signature</h1><p id="documentName">Opening document…</p></div>
     <div class="actions"><button id="cancel">Cancel</button><button id="confirm" class="primary" disabled>Use this position</button></div>
   </header>
+  <section id="structureWarning" class="structure-warning" role="alert" aria-labelledby="structureWarningTitle" hidden>
+    <span class="warning-symbol" aria-hidden="true">!</span>
+    <div><h2 id="structureWarningTitle">PDF structure warning</h2>
+      <p>This PDF failed strict structural checks. Compatible mode lets you continue signing.</p>
+      <ul id="structureWarningReasons"></ul>
+      <p>Review the pages before continuing. Signature integrity checks remain enabled.</p>
+    </div>
+  </section>
   <nav class="toolbar" aria-label="Document controls">
     <div class="page-controls">
       <button id="previous" aria-label="Previous page" disabled>‹</button>

@@ -330,6 +330,53 @@ def require_signing_dependencies():
         raise SignPDFError("missing signing dependencies; install requirements-signpdf.txt") from None
 
 
+def structure_issue(error, reader):
+    """Map parser failures to public diagnostics without exposing raw PDF data."""
+    text = str(error)
+    code, message = "strict-structure", "The PDF failed a strict structural check; no further safe detail is available."
+    if "a free xref with next generation 0" in text:
+        code = "free-xref-generation-zero"
+        message = ("A later PDF revision marks a free xref entry with generation 0. "
+                   "Strict parsing rejects this because the object history is ambiguous.")
+    elif "XRef stream objects must not be clobbered" in text:
+        code, message = "overwritten-xref-stream", "A later revision overwrites an internal cross-reference stream."
+    elif re.fullmatch(r"Object with id \d+ .*", text):
+        code, message = "object-generation-conflict", "An internal object is reused with an inconsistent generation number."
+    elif "EOF marker not found" in text:
+        code, message = "missing-eof-marker", "The PDF is missing the expected end-of-file marker."
+    elif "Multiple definitions in dictionary" in text:
+        code, message = "duplicate-dictionary-entry", "A PDF dictionary contains duplicate entries."
+    elif "xref table" in text.lower() or "startxref" in text.lower():
+        code, message = "xref-structure", "The PDF's internal cross-reference index contains inconsistent entries or offsets."
+    return dict(reader=reader, code=code, message=message)
+
+
+def structure_warnings(path: Path) -> list[dict]:
+    """Probe strict parsing after compatible validation, without rewriting bytes."""
+    from pypdf.errors import PdfReadError as PyPDFReadError
+    from pyhanko.pdf_utils.misc import PdfReadError as PyHankoReadError
+    from pyhanko.pdf_utils.reader import PdfFileReader
+
+    issues = []
+    try:
+        pdf_reader(path, strict_pdf=True)
+    except PyPDFReadError as error:
+        issues.append(structure_issue(error, "pypdf"))
+    try:
+        with path.open("rb") as stream:
+            PdfFileReader(stream, strict=True)
+    except PyHankoReadError as error:
+        issues.append(structure_issue(error, "pyHanko"))
+    return issues
+
+
+def report_structure_warnings(issues):
+    if issues:
+        print("Warning: PDF structure failed strict checks; continuing in compatible mode.", file=sys.stderr)
+        for issue in issues:
+            print(f"  {issue['reader']} [{issue['code']}]: {issue['message']}", file=sys.stderr)
+
+
 def verify_pdf(path: Path, expected_names: set[str] | None = None,
                new_field: str | None = None, *, strict_pdf: bool = False) -> set[str]:
     from pyhanko.pdf_utils.reader import PdfFileReader
@@ -533,11 +580,13 @@ def execute(args) -> int:
         reader = pdf_reader(snapshot, strict_pdf=args.strict_pdf)
         check_certification(reader)
         previous = verify_pdf(snapshot, strict_pdf=args.strict_pdf)
+        issues = [] if args.strict_pdf else structure_warnings(snapshot)
+        report_structure_warnings(issues)
         if graphical:
             try:
                 number, rect = choose_graphical(snapshot, graphical_pages(reader),
                                                 page_index(args.page, len(reader.pages)) + 1,
-                                                source.name, appearance)
+                                                source.name, appearance, warnings=issues)
             except PickerCancelled:
                 print("Operation cancelled.")
                 return 0

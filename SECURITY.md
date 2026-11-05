@@ -67,6 +67,10 @@ parsing consistently across the parent and signing worker. Neither mode skips
 cryptographic integrity, full coverage, prior-signature/permitted-change or
 certification checks. The default stream decoding limits are unchanged.
 Unreadable inputs and failed validation still prevent output publication.
+Strict parser failures detected during compatible-mode preflight are shown
+in Terminal and the preview as safe, mapped diagnostics. Raw parser exception
+messages are never sent to the browser or printed: they can contain document
+data. These probes are not a PDF standards-conformance validator.
 
 `signpdf` uses a separate PKCS#11 signing worker. Only that worker receives
 the resolved PIN from `op run`; it removes the PIN environment variable before

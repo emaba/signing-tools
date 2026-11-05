@@ -60,6 +60,19 @@ class PickerTests(PDFTestBase):
         self.assertEqual(picker.selection_mm({"page": 2, "rect": [.1, .2, .5, .1]}, pages),
                          (2, (10, 40, 50, 20)))
 
+    def test_info_serves_structure_warning_for_the_previewed_snapshot(self):
+        self.append_legacy_free_xref()
+        warnings = signpdf.structure_warnings(self.source)
+        session = picker.PlacementSession(
+            self.source, signpdf.graphical_pages(signpdf.pdf_reader(self.source)),
+            1, "Synthetic test.pdf", {}, warnings=warnings)
+        try:
+            self.assertEqual(session.info()["warnings"], warnings)
+            self.assertEqual(warnings[0]["code"], "free-xref-generation-zero")
+            self.assertTrue(session.render(0).startswith(b"\x89PNG"))
+        finally:
+            session.close()
+
     def test_preview_matches_crop_rotation_and_user_unit(self):
         from PIL import Image
         from pypdf import PdfReader, PdfWriter
