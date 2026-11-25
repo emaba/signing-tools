@@ -121,3 +121,20 @@ Rollback refuses changed destination files or backups, restores the exact old
 functions and keeps the unified configuration as user data. Open a new Terminal.
 Brew removal alone does not restore legacy functions or delete user settings.
 Do not remove old Application Support releases until rollback is no longer needed.
+
+## Clean up after migration
+
+After accepting the Homebrew CLI, the previous Application Support installation,
+old bundles/checkouts and temporary test environments are no longer required.
+Move them to Trash if you want a recoverable cleanup. Preserve your signed PDFs
+and `~/.config/signing-tools/config.toml`.
+
+If you retire the old application, also retire its matching `backups` directory
+and `migration.json` record from `~/.config/signing-tools`; otherwise a rollback
+record can outlive its target application. Restoring the old shell setup later
+requires restoring all those retired files first. Fresh Homebrew operation needs
+only the current configuration, not a migration record.
+
+Use `brew cleanup signing-tools` for package caches; do not delete Cellar files
+or shared dependencies manually. `brew developer` shows the current mode and
+`brew developer off` disables development mode when it is enabled.

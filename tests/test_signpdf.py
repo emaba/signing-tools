@@ -17,8 +17,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-import signpdf
-import signpdf_appearance
+from signing_tools import signpdf
+from signing_tools import signpdf_appearance
 
 try:
     import pypdf

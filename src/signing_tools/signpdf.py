@@ -91,7 +91,7 @@ def pdf_reader(path: Path, *, strict_pdf: bool = False):
     try:
         from pypdf import PdfReader
     except ImportError:
-        raise SignPDFError("missing pypdf; install requirements-signpdf.txt in the signpdf environment") from None
+        raise SignPDFError("missing pypdf; reinstall signing-tools through Homebrew") from None
     reader = PdfReader(str(path), strict=strict_pdf)
     if reader.is_encrypted:
         raise SignPDFError("encrypted PDFs are not supported in this version")
@@ -325,10 +325,10 @@ def signing_settings() -> dict:
 def require_signing_dependencies():
     try:
         if importlib.metadata.version("pyHanko") != "0.38.0":
-            raise SignPDFError("this version requires pyHanko 0.38.0; use requirements-signpdf.txt")
+            raise SignPDFError("this version requires pyHanko 0.38.0; reinstall signing-tools through Homebrew")
         import pkcs11  # noqa: F401
     except (ImportError, importlib.metadata.PackageNotFoundError):
-        raise SignPDFError("missing signing dependencies; install requirements-signpdf.txt") from None
+        raise SignPDFError("missing signing dependencies; reinstall signing-tools through Homebrew") from None
 
 
 def structure_issue(error, reader):

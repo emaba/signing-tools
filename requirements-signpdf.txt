@@ -1,5 +1,0 @@
-# Use a dedicated Python 3.12 environment with the same architecture as SafeDive.
-pyHanko[pkcs11,opentype]==0.38.0
-pypdf==7.1.1
-pypdfium2==5.15.2
-Pillow==13.0.0

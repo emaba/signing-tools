@@ -1,4 +1,4 @@
-"""Exercise the Fish function without hardware, network access, or real secrets."""
+"""Exercise the installed CAdES CLI with synthetic tools and generated keys."""
 
 import json
 import os
@@ -13,7 +13,6 @@ import unittest
 
 
 ROOT = Path(__file__).resolve().parents[1]
-FISH = shutil.which("fish")
 
 # One executable implements only the external interfaces exercised by the tests.
 # The marker is synthetic test data, never a real PIN.
@@ -93,8 +92,7 @@ else:
 '''
 
 
-@unittest.skipUnless(FISH, "Fish must be installed")
-class SignP7mTests(unittest.TestCase):
+class CAdESTests(unittest.TestCase):
     def setUp(self):
         self.workspace = tempfile.TemporaryDirectory(prefix="signp7m-tests-")
         self.addCleanup(self.workspace.cleanup)
@@ -129,15 +127,13 @@ class SignP7mTests(unittest.TestCase):
             "TEST_CALLS": str(self.log),
             "TEST_PROVIDER_PREFIX": str(self.root / "provider"),
         }
+        self.env.update(TEST_EXPECTED_PIN_REF=self.env["SIGNP7M_PIN_REF"].removeprefix("op://"), TEST_FILTERED="1")
 
     def run_function(self, *args, answer="", extra_env=None):
-        env = self.env | (extra_env or {})
-        return subprocess.run(
-            [FISH, "--no-config", "-c", 'source "$argv[1]"; signp7m $argv[2..-1]',
-             str(ROOT / "signp7m.fish"), *map(str, args)],
-            env=env, cwd=self.root, input=answer, text=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15,
-        )
+        command=Path(sys.prefix) / "bin/signp7m"
+        return subprocess.run([str(command), *map(str, args)],
+                              env=self.env | (extra_env or {}), cwd=self.root, input=answer,
+                              text=True, capture_output=True, timeout=15)
 
     def calls(self):
         if not self.log.exists():
@@ -280,14 +276,63 @@ class SignP7mTests(unittest.TestCase):
         self.assert_clean()
 
     def test_pin_reference_does_not_escape_to_parent(self):
-        result = subprocess.run(
-            [FISH, "--no-config", "-c",
-             'source "$argv[1]"; signp7m "$argv[2]"; '
-             'set -l result $status; set -q PKCS11_PIN; and exit 99; exit $result',
-             str(ROOT / "signp7m.fish"), str(self.input)],
-            env=self.env, cwd=self.root, capture_output=True, text=True, timeout=15,
-        )
+        result = self.run_function(self.input, extra_env={"UNRELATED_SECRET": "op://other/item/field"})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("SYNTHETIC_TEST_MARKER", result.stdout + result.stderr)
+        self.assertNotIn("op://", result.stdout + result.stderr)
+        self.assertNotIn("PKCS11_PIN", self.env)
+
+    def test_real_openssl_cades_with_synthetic_certificate(self):
+        openssl = Path("/opt/homebrew/opt/openssl@4/bin/openssl")
+        if not openssl.is_file():
+            self.skipTest("Homebrew OpenSSL 4 needed for real CMS test")
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+        from datetime import datetime, timedelta, timezone
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "Synthetic CAdES test")])
+        now = datetime.now(timezone.utc)
+        certificate = (x509.CertificateBuilder().subject_name(name).issuer_name(name)
+                       .public_key(key.public_key()).serial_number(x509.random_serial_number())
+                       .not_valid_before(now - timedelta(days=1)).not_valid_after(now + timedelta(days=1))
+                       .sign(key, hashes.SHA256()))
+        pem, der = self.root / "synthetic.key", self.root / "synthetic.der"
+        pem.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8,
+                                         serialization.NoEncryption()))
+        pem.chmod(0o600)
+        der.write_bytes(certificate.public_bytes(serialization.Encoding.DER))
+        reader = self.bin / "pkcs11-tool"
+        reader.write_text(reader.read_text().replace(
+            'b"PUBLIC TEST CERTIFICATE"', 'Path(os.environ["TEST_CERT_DER"]).read_bytes()'))
+        (self.bin / "openssl").unlink()
+        (self.bin / "openssl").symlink_to(openssl)
+        # Replace only the hardware-dependent signing step, retaining real CMS commands.
+        code = '''import os, subprocess, sys
+args = sys.argv[3:]
+result = []
+i = 0
+while i < len(args):
+    if args[i] in ("-provider", "-provider-path"):
+        i += 2
+        continue
+    if args[i] == "-inkey":
+        result.extend(["-inkey", os.environ["TEST_KEY"]]); i += 2
+        continue
+    result.append(args[i]); i += 1
+raise SystemExit(subprocess.run(result).returncode)
+'''
+        op = self.bin / "op"
+        op.write_text("#!/bin/sh\nexec " + shlex.quote(sys.executable) + " -c " + shlex.quote(code) + ' "$@"\n')
+        result = self.run_function(self.input, extra_env={"TEST_CERT_DER": str(der), "TEST_KEY": str(pem)})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        recovered = self.root / "independent.pdf"
+        verify = subprocess.run([str(openssl), "cms", "-verify", "-inform", "DER", "-noverify",
+                                 "-in", str(self.input) + ".p7m", "-out", str(recovered)], capture_output=True)
+        self.assertEqual(verify.returncode, 0)
+        self.assertEqual(recovered.read_bytes(), self.input.read_bytes())
+        self.assert_clean()
 
 
 if __name__ == "__main__":

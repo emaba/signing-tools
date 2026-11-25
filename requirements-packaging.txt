@@ -1,3 +1,0 @@
-# Only needed to generate the setup PDFs and shareable ZIP, not to sign files.
-reportlab==4.4.9
-pypdf==7.1.1

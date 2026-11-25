@@ -12,8 +12,8 @@ from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 from test_signpdf import PDFTestBase
-import signpdf
-import signpdf_picker as picker
+from signing_tools import signpdf
+from signing_tools import signpdf_picker as picker
 
 
 class PickerTests(PDFTestBase):

@@ -1,7 +1,6 @@
 include requirements-runtime.lock
 prune tests
 prune scripts
-prune packaging
 prune Formula
 prune work
 prune dist

@@ -55,7 +55,7 @@ def appearance_settings(args) -> dict:
         try:
             from pyhanko.pdf_utils.font.opentype import GlyphAccumulatorFactory  # noqa: F401
         except ImportError:
-            raise AppearanceError("split appearances require pyHanko[opentype]; install requirements-signpdf.txt") from None
+            raise AppearanceError("split appearances require pyHanko[opentype]; reinstall signing-tools through Homebrew") from None
         for key, supplied, default in (("script_font", args.script_font, BUNDLED_SCRIPT),
                                         ("text_font", args.text_font, FONT_DIRECTORY / "Arial.ttf")):
             path = (supplied or default).expanduser().resolve()

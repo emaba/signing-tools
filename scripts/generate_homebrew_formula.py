@@ -10,13 +10,10 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def generate(revision, tag, resources, *, archive=None, sha256=None):
-    if (not archive and not re.fullmatch(r"[0-9a-f]{40}", revision or "")) or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
+def generate(revision, tag, resources):
+    if not re.fullmatch(r"[0-9a-f]{40}", revision or "") or not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
         raise ValueError("use an immutable source revision and semantic version tag")
-    if archive and (not archive.startswith(("https://", "file://")) or not re.fullmatch(r"[0-9a-f]{64}", sha256 or "")):
-        raise ValueError("archive sources require a file/HTTPS URL and SHA-256")
-    source = ([f'  url "{archive}"', f'  sha256 "{sha256}"'] if archive else
-              [f'  url "https://github.com/emaba/signing-tools.git", tag: "{tag}", revision: "{revision}"'])
+    source = [f'  url "https://github.com/emaba/signing-tools.git", tag: "{tag}", revision: "{revision}"']
     lines = [
         "# Third-party macOS tap: upstream wheels are pinned and SHA-256 verified.",
         "# This third-party distribution is not a homebrew/core submission.",
@@ -92,13 +89,11 @@ end
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--revision")
-    parser.add_argument("--archive")
-    parser.add_argument("--sha256")
-    parser.add_argument("--tag", default="v0.1.2")
+    parser.add_argument("--tag", default="v0.1.3")
     parser.add_argument("--resources", type=Path, default=ROOT / "homebrew/resources.json")
     parser.add_argument("--output", type=Path, default=ROOT / "Formula/signing-tools.rb")
     args = parser.parse_args()
-    output = generate(args.revision, args.tag, json.loads(args.resources.read_text()), archive=args.archive, sha256=args.sha256)
+    output = generate(args.revision, args.tag, json.loads(args.resources.read_text()))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(output)
     print("Generated pinned Homebrew formula:", args.output)

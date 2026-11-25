@@ -50,7 +50,7 @@ class PlacementSession:
             import pypdfium2 as pdfium
             from PIL import Image  # noqa: F401
         except ImportError:
-            raise PickerError("graphical placement needs pypdfium2 and Pillow; install requirements-signpdf.txt") from None
+            raise PickerError("graphical placement needs pypdfium2 and Pillow; reinstall signing-tools through Homebrew") from None
         self.document = pdfium.PdfDocument(str(source))
         if len(self.document) != len(pages):
             self.document.close()

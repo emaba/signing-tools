@@ -108,6 +108,22 @@ packaging checks passed, the secret scan retained only the previously reviewed
 variable-name false positive, and all commit emails still use GitHub noreply.
 These checks did not resolve a PIN or request a card login/signature.
 
+## Current-tree simplification (0.1.3)
+
+The current source tree was reduced from 70 to 43 tracked files. Obsolete shell
+scripts, compatibility launchers, standalone installers, ZIP/PDF bundle builders,
+duplicate requirements and their installation-only tests were removed. Current
+CAdES tests now invoke the installed Python CLI directly, retaining the contract
+and generated-key CMS verification without requiring Fish. PAdES, credential,
+preview and migration tests remain. All 110 current Python tests and seven UI
+tests passed; the built wheel contains the package and required assets without
+legacy shell launchers. Historical implementations remain in Git history.
+
+The simple Homebrew guide now lives in [quick-start.md](quick-start.md); the
+[assistant brief](assistant-installation.md) is separate from obsolete packaging.
+This source cleanup changes dependency-repair instructions but not the signing
+algorithm, credential resolution or loopback restriction.
+
 ## Limits and continued maintenance
 
 This is an evidence-based review, not a proof that the program or every native

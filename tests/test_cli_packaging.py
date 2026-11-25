@@ -1,19 +1,11 @@
-"""Formula resources and a portable local tap remain independent of user setup."""
+"""Checked Homebrew resources and standard Python package entry points."""
 
-import hashlib
-from io import BytesIO
-import tarfile
 import json
 from pathlib import Path
-import shutil
-import subprocess
-import sys
-import tempfile
 import tomllib
 import unittest
 
 from scripts.generate_homebrew_formula import generate
-from scripts.build_cli_release import normalize_sdist
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -46,84 +38,17 @@ class FormulaTests(unittest.TestCase):
         self.assertNotIn('config.toml', text)
         self.assertNotIn('fish', text)
 
-    def test_source_revision_and_archive_checksum_are_required(self):
-        for revision, tag, extras in [('main', 'v0.1.0', {}), ('a' * 40, 'latest', {}),
-                                      (None, 'v0.1.0', {'archive': 'https://example.invalid/source.tar.gz'})]:
+    def test_immutable_source_revision_and_version_are_required(self):
+        for revision, tag in [('main', 'v0.1.0'), ('a' * 40, 'latest'), (None, 'v0.1.0')]:
             with self.assertRaises(ValueError):
-                generate(revision, tag, self.resources, **extras)
-
-    def test_source_compatibility_helpers_do_not_dispatch_signing(self):
-        for name in ('signpdf_appearance.py', 'signpdf_picker.py'):
-            result=subprocess.run([sys.executable, str(ROOT / name), 'synthetic-unused.pdf'],
-                                  capture_output=True, text=True, timeout=10)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(result.stdout + result.stderr, '')
+                generate(revision, tag, self.resources)
 
     def test_package_exposes_three_console_scripts_and_assets(self):
         package = tomllib.loads((ROOT / 'pyproject.toml').read_text())
         self.assertEqual(set(package['project']['scripts']), {'signpdf', 'signp7m', 'signing-tools'})
         for target in package['project']['scripts'].values():
             self.assertTrue(target.startswith('signing_tools.cli:'))
-        self.assertIn('assets/placement/*', package['tool']['setuptools']['package-data']['signing_tools'])
-
-
-class SourceArchiveTests(unittest.TestCase):
-    def test_normalized_archives_match_despite_build_metadata(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            results=[]
-            for index in (1, 2):
-                archive=Path(temporary) / (str(index) + ".tar.gz")
-                with tarfile.open(archive, "w:gz") as target:
-                    member=tarfile.TarInfo("signing_tools-0.1.0/README.md")
-                    member.mtime=1000 * index
-                    member.uid=index
-                    member.uname="synthetic-host-" + str(index)
-                    member.size=4
-                    target.addfile(member, BytesIO(b"TEST"))
-                normalize_sdist(archive, 1000)
-                results.append(archive.read_bytes())
-            self.assertEqual(*results)
-            with tarfile.open(fileobj=BytesIO(results[0]), mode="r:gz") as archive:
-                self.assertEqual(archive.extractfile(archive.getmembers()[0]).read(), b"TEST")
-
-
-class LocalTapTests(unittest.TestCase):
-    def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix='signing local tap ')
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
-        for original, name in [('scripts/prepare_local_tap.py', 'prepare-local-tap.py'),
-                               ('scripts/generate_homebrew_formula.py', 'formula_builder.py'),
-                               ('homebrew/resources.json', 'resources.json')]:
-            shutil.copyfile(ROOT / original, self.root / name)
-        self.archive = self.root / 'signing_tools-0.1.0.tar.gz'
-        self.archive.write_bytes(b'SYNTHETIC SOURCE ARCHIVE FOR TAP GENERATION ONLY')
-        self.digest = hashlib.sha256(self.archive.read_bytes()).hexdigest()
-        (self.root / 'SHA256SUMS.txt').write_text(self.digest + '  ' + self.archive.name + '\n')
-
-    def run_helper(self):
-        return subprocess.run([sys.executable, str(self.root / 'prepare-local-tap.py')],
-                              cwd=self.root, capture_output=True, text=True)
-
-    def test_helper_creates_pinned_git_tap_and_is_idempotent(self):
-        result = self.run_helper()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        formula = self.root / 'homebrew-tap/Formula/signing-tools.rb'
-        text = formula.read_text()
-        self.assertIn(self.archive.resolve().as_uri(), text)
-        self.assertIn(self.digest, text)
-        self.assertTrue((formula.parents[1] / '.git').is_dir())
-        self.assertEqual(self.run_helper().returncode, 0)
-        self.assertEqual(formula.read_text(), text)
-
-    def test_helper_rejects_archive_changes_before_creating_a_tap(self):
-        self.archive.write_bytes(b'SYNTHETIC CHANGED ARCHIVE')
-        self.assertNotEqual(self.run_helper().returncode, 0)
-        self.assertFalse((self.root / 'homebrew-tap').exists())
-
-    def test_helper_preserves_an_existing_changed_formula(self):
-        self.assertEqual(self.run_helper().returncode, 0)
-        formula = self.root / 'homebrew-tap/Formula/signing-tools.rb'
-        formula.write_text('SYNTHETIC OWNER EDIT\n')
-        self.assertNotEqual(self.run_helper().returncode, 0)
-        self.assertEqual(formula.read_text(), 'SYNTHETIC OWNER EDIT\n')
+        from importlib.resources import files
+        for asset in ('fonts/KaushanScript-Regular.ttf', 'fonts/OFL-KaushanScript.txt',
+                      'placement/index.html', 'placement/app.js', 'placement/style.css'):
+            self.assertTrue(files('signing_tools').joinpath('assets', asset).is_file(), asset)

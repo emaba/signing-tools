@@ -28,7 +28,7 @@ brew install emaba/signing-tools/signing-tools
 
 The public tap needs no GitHub authentication. No ZIP is needed. See
 [installation and migration](docs/installation.md) and the
-[simple installation guide](packaging/macos/START-HERE.md).
+[simple installation guide](docs/quick-start.md).
 
 Existing installation:
 
@@ -95,7 +95,7 @@ To restore the previous shell setup, run `signing-tools rollback --plan` and
 
 The standard `pyproject.toml` package includes all preview assets and the
 redistributable cursive font. [Build and Homebrew instructions](docs/distribution.md)
-explain versioned releases, pinned/checksummed dependencies and local tap testing.
+explain versioned releases, pinned/checksummed dependencies and formula testing.
 [The PAdES guide](docs/signpdf.md) documents placement and signature checks.
-The [legacy Fish reference](docs/legacy-fish.md) is historical documentation;
-new installations use the installed CLI executables.
+Legacy shell scripts and ZIP installers are available only in Git history.
+Current installations use the CLI package and Homebrew formula.

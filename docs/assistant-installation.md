@@ -1,7 +1,7 @@
-# Installation brief for Claude
+# Installation brief for an assistant
 
-Read START-HERE.md. Install only when explicitly requested by the Mac owner.
-Use the remote Homebrew tap documented in START-HERE.md.
+Read quick-start.md. Install only when explicitly requested by the Mac owner.
+Use the remote Homebrew tap documented in quick-start.md.
 The application is a Python CLI, not a Fish/Zsh function collection. Do not
 install Fish, change login shells, edit PATH or add source lines.
 
@@ -9,7 +9,7 @@ install Fish, change login shells, edit PATH or add source lines.
    credentials. Preserve working
    Homebrew, Python, 1Password and signing dependencies; do not perform general
    upgrades, cleanup or unrelated removals.
-2. Use brew tap and brew install from START-HERE.md; no ZIP is needed.
+2. Use brew tap and brew install from quick-start.md; no ZIP is needed.
    Inspect the installation plan and allow
    only required filesystem permissions. Do not redirect an installation to
    unrelated paths to bypass a denied permission.

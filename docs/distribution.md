@@ -5,7 +5,7 @@
 `pyproject.toml` defines the standard wheel/source package and three console
 entry points. It includes the preview HTML/CSS/JS, cursive font and its licence.
 `requirements-runtime.lock` preserves the exact runtime versions tested in the
-previous installation. New package versions must keep tests/hardware acceptance
+supported release. New package versions must keep tests/hardware acceptance
 separate from dependency upgrades.
 
 The initial third-party formula uses checked upstream wheels for Apple Silicon
@@ -36,7 +36,7 @@ Install `packaging` in a development environment for resource selection, then:
 
 ```sh
 python scripts/collect_homebrew_resources.py
-python scripts/generate_homebrew_formula.py --revision SOURCE_COMMIT --tag v0.1.0
+python scripts/generate_homebrew_formula.py --revision SOURCE_COMMIT --tag v0.1.3
 ```
 
 The collector selects compatible wheels from official PyPI metadata and records
@@ -58,9 +58,10 @@ the tap's default branch so normal `brew tap`/`brew upgrade` sees the version.
 Do not move a published tag. For application/dependency changes, increment the
 package version and refresh pinned resources deliberately.
 
-The owner installs and updates through Homebrew. ZIP distribution is no longer
-part of the normal process. Existing source-bundle scripts are retained only as
-an optional offline/historical maintenance path and are not installed by Brew.
+Installation and updates use Homebrew. Obsolete shell launchers, installers,
+ZIP/PDF bundle builders and their tests were removed from the current tree;
+they remain in Git history. Keep only the standard Python package, assets,
+active tests, documentation and two formula/resource maintenance scripts.
 
 ```sh
 brew tap emaba/signing-tools https://github.com/emaba/signing-tools.git

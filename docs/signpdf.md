@@ -116,8 +116,7 @@ Homebrew owns the application, isolated dependencies and command links. Personal
 settings live in the [shared TOML configuration](configuration.md).
 
 For development, use the editable-package instructions in
-[distribution maintenance](distribution.md). Legacy Fish examples are archived
-in [the historical guide](legacy-fish.md) and are not the installed interface.
+[distribution maintenance](distribution.md). Historical shell implementations remain in Git history.
 
 ## Authentication and card settings
 
@@ -342,7 +341,7 @@ PKCS#11 traces or provide credentials when reporting a problem.
 ## Tests and hardware acceptance
 
 ```fish
-.venv-signpdf/bin/python -m unittest discover -s tests -v
+.venv-cli/bin/python -m unittest discover -s tests -v
 node --test tests/test_placement_ui.cjs
 ```
 
