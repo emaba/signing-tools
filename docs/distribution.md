@@ -63,9 +63,9 @@ part of the normal process. Existing source-bundle scripts are retained only as
 an optional offline/historical maintenance path and are not installed by Brew.
 
 ```sh
-brew tap emaba/signp7m https://github.com/emaba/signp7m.git
-brew install emaba/signp7m/signing-tools
-env HOMEBREW_DEVELOPER=1 brew test emaba/signp7m/signing-tools
+brew tap emaba/signing-tools https://github.com/emaba/signing-tools.git
+brew install emaba/signing-tools/signing-tools
+env HOMEBREW_DEVELOPER=1 brew test emaba/signing-tools/signing-tools
 ```
 
 Test the built wheel outside the checkout as well as editable development.

@@ -84,7 +84,7 @@ new local object database, including unreachable objects.
 The owner then re-created the tap, installed 0.1.1 from the public Git source,
 and passed `brew test`. Homebrew verified the source and all wheel resources.
 Read-only postflight confirmed all three executable links target 0.1.1, the
-installed receipt names `emaba/signp7m`, all full doctor/provider checks pass,
+installed receipt initially names `emaba/signp7m` (before the project rename), all full doctor/provider checks pass,
 the temporary local tap is removed, personal configuration is byte-identical,
 and the rollback plan remains valid. No PIN resolution, card login or signature
 was requested during these checks. Open a new terminal to discard old functions

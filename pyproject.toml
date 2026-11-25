@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "signing-tools"
-version = "0.1.1"
+version = "0.1.2"
 description = "Local smart-card CAdES and PAdES signing tools for macOS"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
@@ -21,7 +21,7 @@ signp7m = "signing_tools.cli:signp7m"
 signing-tools = "signing_tools.cli:main"
 
 [project.urls]
-Repository = "https://github.com/emaba/signp7m"
+Repository = "https://github.com/emaba/signing-tools"
 
 [tool.setuptools.packages.find]
 where = ["src"]

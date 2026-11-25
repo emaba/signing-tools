@@ -139,8 +139,8 @@ field's **secret reference**. Do not copy or print the actual PIN.
 From a directory in which you want to keep the checkout:
 
 ```fish
-git clone git@github.com:emaba/signp7m.git
-cd signp7m
+git clone git@github.com:emaba/signing-tools.git
+cd signing-tools
 mkdir -p ~/.config/fish/functions ~/.config/fish/conf.d
 ```
 

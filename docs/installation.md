@@ -35,8 +35,8 @@ The public repository requires no GitHub credentials. Never put a token,
 password or private key into a formula or signing configuration.
 
 ```sh
-brew tap emaba/signp7m https://github.com/emaba/signp7m.git
-brew install emaba/signp7m/signing-tools
+brew tap emaba/signing-tools https://github.com/emaba/signing-tools.git
+brew install emaba/signing-tools/signing-tools
 ```
 
 The formula on `main` pins a version tag and exact Git revision. All upstream
@@ -44,26 +44,21 @@ wheel resources have SHA-256 checksums and runtime installation/builds use
 network resolution disabled. This is a third-party tap, not Homebrew Core.
 No ZIP or application-specific installer is needed.
 
-For the initial owner installation only, a local tap was used to validate the
-formula before publication. Recreate any tap cloned from the old private history
-before installing from the new public history. This does not change the current
-package, which is still associated with the local validation tap:
+## Move an existing installation to the renamed tap
+
+The repository and tap are now named `signing-tools`. Existing installations
+from the former `emaba/signp7m` tap can move to the new tap through Homebrew:
 
 ```sh
+brew tap emaba/signing-tools https://github.com/emaba/signing-tools.git
+brew reinstall emaba/signing-tools/signing-tools
 brew untap emaba/signp7m
 ```
 
-Then install from the public tap:
-
-```sh
-brew tap emaba/signp7m https://github.com/emaba/signp7m.git
-brew reinstall emaba/signp7m/signing-tools
-brew untap emaba/signing-tools-local
-```
-
-Configuration and migration backups remain outside the Cellar and survive the
-reinstall. Only remove the old local distribution once the remote formula has
-been tested and the old tap is no longer used.
+Run the commands in order and stop if any fails. The reinstall preserves private
+configuration and migration backups outside the Cellar. Remove the old tap only
+after the new installation succeeds. Installations from the historical local
+validation tap can remove `emaba/signing-tools-local` afterwards instead.
 
 ## Migrate this existing installation
 

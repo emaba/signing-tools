@@ -22,8 +22,8 @@ support needs a separately verified dependency/build path.
 Install from the repository as a Homebrew tap:
 
 ```sh
-brew tap emaba/signp7m https://github.com/emaba/signp7m.git
-brew install emaba/signp7m/signing-tools
+brew tap emaba/signing-tools https://github.com/emaba/signing-tools.git
+brew install emaba/signing-tools/signing-tools
 ```
 
 The public tap needs no GitHub authentication. No ZIP is needed. See

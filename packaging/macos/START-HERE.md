@@ -27,8 +27,8 @@ Do not apply historical useIFDCCID workarounds or reader firmware changes.
 The public repository requires no GitHub account or authentication.
 
 ```sh
-brew tap emaba/signp7m https://github.com/emaba/signp7m.git
-brew install emaba/signp7m/signing-tools
+brew tap emaba/signing-tools https://github.com/emaba/signing-tools.git
+brew install emaba/signing-tools/signing-tools
 ```
 
 Homebrew installs the declared dependencies and the application in its private

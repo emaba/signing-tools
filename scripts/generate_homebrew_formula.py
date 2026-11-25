@@ -16,13 +16,13 @@ def generate(revision, tag, resources, *, archive=None, sha256=None):
     if archive and (not archive.startswith(("https://", "file://")) or not re.fullmatch(r"[0-9a-f]{64}", sha256 or "")):
         raise ValueError("archive sources require a file/HTTPS URL and SHA-256")
     source = ([f'  url "{archive}"', f'  sha256 "{sha256}"'] if archive else
-              [f'  url "https://github.com/emaba/signp7m.git", tag: "{tag}", revision: "{revision}"'])
+              [f'  url "https://github.com/emaba/signing-tools.git", tag: "{tag}", revision: "{revision}"'])
     lines = [
         "# Third-party macOS tap: upstream wheels are pinned and SHA-256 verified.",
         "# This third-party distribution is not a homebrew/core submission.",
         "class SigningTools < Formula",
         '  desc "Local smart-card PDF and P7M signing with 1Password"',
-        '  homepage "https://github.com/emaba/signp7m"',
+        '  homepage "https://github.com/emaba/signing-tools"',
         *source,
         f'  version "{tag[1:]}"',
         "", '  depends_on "uv" => :build', '  depends_on "python@3.12"',
@@ -94,7 +94,7 @@ def main():
     parser.add_argument("--revision")
     parser.add_argument("--archive")
     parser.add_argument("--sha256")
-    parser.add_argument("--tag", default="v0.1.1")
+    parser.add_argument("--tag", default="v0.1.2")
     parser.add_argument("--resources", type=Path, default=ROOT / "homebrew/resources.json")
     parser.add_argument("--output", type=Path, default=ROOT / "Formula/signing-tools.rb")
     args = parser.parse_args()
