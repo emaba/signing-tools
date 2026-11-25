@@ -3,8 +3,8 @@
 class SigningTools < Formula
   desc "Local smart-card PDF and P7M signing with 1Password"
   homepage "https://github.com/emaba/signing-tools"
-  url "https://github.com/emaba/signing-tools.git", tag: "v0.1.3", revision: "6a02752db79d4847405377eba80b7f197cb207cf"
-  version "0.1.3"
+  url "https://github.com/emaba/signing-tools.git", tag: "v0.1.4", revision: "73ac0737638136f98ae355c4ac81b49448968bb1"
+  version "0.1.4"
 
   depends_on "uv" => :build
   depends_on "python@3.12"
@@ -196,6 +196,7 @@ class SigningTools < Formula
 
   test do
     assert_match version.to_s, shell_output("#{bin}/signing-tools --version")
+    assert_match "--wizard", shell_output("#{bin}/signing-tools configure --help")
     system bin/"signing-tools", "doctor", "--runtime-only"
     system bin/"signing-tools", "sample", testpath/"sample.pdf"
     assert_match "No signature fields found", shell_output("#{bin}/signpdf --list-fields #{testpath}/sample.pdf")
