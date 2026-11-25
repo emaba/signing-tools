@@ -1,6 +1,8 @@
 """Formula resources and a portable local tap remain independent of user setup."""
 
 import hashlib
+from io import BytesIO
+import tarfile
 import json
 from pathlib import Path
 import shutil
@@ -11,6 +13,7 @@ import tomllib
 import unittest
 
 from scripts.generate_homebrew_formula import generate
+from scripts.build_cli_release import normalize_sdist
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -55,6 +58,26 @@ class FormulaTests(unittest.TestCase):
         for target in package['project']['scripts'].values():
             self.assertTrue(target.startswith('signing_tools.cli:'))
         self.assertIn('assets/placement/*', package['tool']['setuptools']['package-data']['signing_tools'])
+
+
+class SourceArchiveTests(unittest.TestCase):
+    def test_normalized_archives_match_despite_build_metadata(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            results=[]
+            for index in (1, 2):
+                archive=Path(temporary) / (str(index) + ".tar.gz")
+                with tarfile.open(archive, "w:gz") as target:
+                    member=tarfile.TarInfo("signing_tools-0.1.0/README.md")
+                    member.mtime=1000 * index
+                    member.uid=index
+                    member.uname="synthetic-host-" + str(index)
+                    member.size=4
+                    target.addfile(member, BytesIO(b"TEST"))
+                normalize_sdist(archive, 1000)
+                results.append(archive.read_bytes())
+            self.assertEqual(*results)
+            with tarfile.open(fileobj=BytesIO(results[0]), mode="r:gz") as archive:
+                self.assertEqual(archive.extractfile(archive.getmembers()[0]).read(), b"TEST")
 
 
 class LocalTapTests(unittest.TestCase):

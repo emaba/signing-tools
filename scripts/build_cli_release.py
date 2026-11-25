@@ -3,12 +3,15 @@
 
 import argparse
 import hashlib
+import gzip
+from io import BytesIO
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import tomllib
 import zipfile
@@ -20,6 +23,23 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def normalize_sdist(path, timestamp):
+    """Remove host names, ownership and build times from the generated archive."""
+    output = BytesIO()
+    with tarfile.open(path, "r:gz") as source, gzip.GzipFile(fileobj=output, mode="wb", mtime=int(timestamp)) as compressed:
+        with tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as destination:
+            for member in sorted(source.getmembers(), key=lambda member: member.name):
+                if not (member.isfile() or member.isdir()):
+                    raise RuntimeError("the source package contains a linked or special file")
+                member.uid = member.gid = 0
+                member.uname = member.gname = ""
+                member.mtime = int(timestamp)
+                member.pax_headers = {}
+                member.mode = 0o755 if member.isdir() or member.mode & 0o111 else 0o644
+                destination.addfile(member, source.extractfile(member) if member.isfile() else None)
+    path.write_bytes(output.getvalue())
 
 
 def build(repo, ref, output):
@@ -37,6 +57,9 @@ def build(repo, ref, output):
                                 env=os.environ | {"SOURCE_DATE_EPOCH": timestamp}, capture_output=True)
         if result.returncode:
             raise RuntimeError("source/wheel build failed; previous release files were kept")
+        for archive in folder.glob("*.tar.gz"):
+            normalize_sdist(archive, timestamp)
+        (folder / ".gitignore").unlink(missing_ok=True)
         for original, name in (("homebrew/resources.json", "resources.json"),
                                ("scripts/generate_homebrew_formula.py", "formula_builder.py"),
                                ("scripts/prepare_local_tap.py", "prepare-local-tap.py"),
