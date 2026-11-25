@@ -99,6 +99,12 @@ terminal session with synthetic inputs confirmed hidden reference entry and
 mode-600 coherent configuration from the installed wheel. No actual PIN,
 1Password lookup, card login or hardware signature was used in these checks.
 
+The owner subsequently upgraded the local Homebrew installation from 0.1.3 to
+0.1.4 and reported that `brew test` and the installed version check passed.
+The installed wizard help/module and runtime checks also passed read-only
+postflight checks; persistent Homebrew developer mode remained disabled.
+The actual card discovery and first hardware signatures remain owner-run checks.
+
 ## Initial 0.1.0 migration acceptance (November 25, 2026)
 
 The owner installed the local formula on Apple Silicon through Homebrew and
