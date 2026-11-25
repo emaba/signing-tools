@@ -2,9 +2,9 @@
 # This third-party distribution is not a homebrew/core submission.
 class SigningTools < Formula
   desc "Local smart-card PDF and P7M signing with 1Password"
-  homepage "https://github.com/emaba/signp7m"
-  url "https://github.com/emaba/signp7m.git", tag: "v0.1.1", revision: "11f53822aeb71be334cff098043808485303c2a6"
-  version "0.1.1"
+  homepage "https://github.com/emaba/signing-tools"
+  url "https://github.com/emaba/signing-tools.git", tag: "v0.1.2", revision: "a3440bac99e920c2505ff812f3e8b12d5035774d"
+  version "0.1.2"
 
   depends_on "uv" => :build
   depends_on "python@3.12"
