@@ -1,15 +1,15 @@
 # Installation brief for Claude
 
 Read START-HERE.md. Install only when explicitly requested by the Mac owner.
-Use the supplied local Homebrew tap (or an authorised accessible remote tap).
+Use the remote Homebrew tap documented in START-HERE.md.
 The application is a Python CLI, not a Fish/Zsh function collection. Do not
 install Fish, change login shells, edit PATH or add source lines.
 
-1. Verify SHA256SUMS.txt and Apple Silicon/macOS compatibility. Preserve working
+1. Verify Apple Silicon/macOS compatibility and private Git read access. Preserve working
    Homebrew, Python, 1Password and signing dependencies; do not perform general
    upgrades, cleanup or unrelated removals.
-2. Prepare the local tap with python3.12 prepare-local-tap.py, then use brew tap
-   and brew install from START-HERE.md. Inspect the installation plan and allow
+2. Use brew tap and brew install from START-HERE.md; no ZIP is needed.
+   Inspect the installation plan and allow
    only required filesystem permissions. Do not redirect an installation to
    unrelated paths to bypass a denied permission.
 3. Verify the issuer-supported PKCS#11 middleware and native architecture.

@@ -29,38 +29,34 @@ password or account password. Only the owner enters that PIN in a concealed
 1Password field and copies that field's secret reference. Never use `op read`
 or reveal the PIN in a chat or diagnostic output.
 
-## Private remote tap (future promotion)
+## Install from the remote Homebrew tap
 
-The formula is maintained on `codex/signpdf-pades`. The default `main` branch
-still contains the historical Fish tool, so use the local distribution below
-for current installations. After the reviewed formula is promoted to a tap's
-default branch, its remote installation can use:
+The repository remains private until the owner chooses to publish it. Each Mac
+needs normal Git read access. Use the existing credential/SSH agent and never
+put a token, password or private key into a formula or configuration.
 
 ```sh
 brew tap emaba/signp7m https://github.com/emaba/signp7m.git
 brew install emaba/signp7m/signing-tools
 ```
 
-The repository remains private and requires Git read access. Use an existing
-credential/SSH agent; never export credentials into a formula. Source tags pin
-an exact revision and all wheel resources have SHA-256 checksums. This is a
-third-party tap, not a Homebrew Core submission.
+The formula on `main` pins a version tag and exact Git revision. All upstream
+wheel resources have SHA-256 checksums and runtime installation/builds use
+network resolution disabled. This is a third-party tap, not Homebrew Core.
+No ZIP or application-specific installer is needed.
 
-## Local package without GitHub access
-
-A distribution folder supplies a versioned source archive, a wheel, the resource
-manifest and `prepare-local-tap.py`. From that folder:
+For the initial owner installation only, a local tap was used to validate the
+formula before publication. To move that installation to the remote tap:
 
 ```sh
-python3.12 prepare-local-tap.py
-brew tap emaba/signing-tools-local "$PWD/homebrew-tap"
-brew install emaba/signing-tools-local/signing-tools
+brew tap emaba/signp7m https://github.com/emaba/signp7m.git
+brew reinstall emaba/signp7m/signing-tools
+brew untap emaba/signing-tools-local
 ```
 
-The helper creates only a local Git tap and a formula pointing to the supplied
-archive with its SHA-256. It performs no package installation, shell change,
-credential lookup or signing. Keep the distribution for rebuilding/reinstalling;
-the installed commands do not depend on its location at runtime.
+Configuration and migration backups remain outside the Cellar and survive the
+reinstall. Only remove the old local distribution once the remote formula has
+been tested and the old tap is no longer used.
 
 ## Migrate this existing installation
 

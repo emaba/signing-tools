@@ -19,11 +19,17 @@ The initial tap supports **Apple Silicon, macOS 13 or later, Python 3.12**.
 The pinned cryptography release has no upstream Intel macOS wheel; Intel
 support needs a separately verified dependency/build path.
 
-Use the supplied local distribution and its local-tap preparation helper.
-It installs through Homebrew without requiring GitHub access; see
-[installation and migration](docs/installation.md). The formula is maintained
-on `codex/signpdf-pades`; the repository's default `main` branch still contains
-the historical Fish version, so it is not yet a directly installable remote tap.
+Install from the repository as a Homebrew tap:
+
+```sh
+brew tap emaba/signp7m https://github.com/emaba/signp7m.git
+brew install emaba/signp7m/signing-tools
+```
+
+The repository is currently private: Git read access is required until the owner
+chooses to make it public. No ZIP is needed. See
+[installation and migration](docs/installation.md) and the
+[simple installation guide](packaging/macos/START-HERE.md).
 
 Existing installation:
 

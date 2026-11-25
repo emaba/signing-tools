@@ -50,38 +50,30 @@ Tag the fully reviewed source commit. The formula can be committed afterwards
 and point to that immutable tag/revision without a circular source hash.
 The repository remains private; tag publication does not change visibility.
 
-## Release bundle
+## Release and upgrade
 
-Commit reviewed changes before generating artifacts. In the development env:
+After tests, tag the fully reviewed source commit and generate the formula
+against that immutable revision. Commit the formula afterwards, then fast-forward
+the tap's default branch so normal `brew tap`/`brew upgrade` sees the version.
+Do not move a published tag. For application/dependency changes, increment the
+package version and refresh pinned resources deliberately.
 
-```sh
-python scripts/build_cli_release.py --ref HEAD --output-dir dist
-```
-
-The builder uses a committed Git archive, builds wheel/sdist with the commit's
-SOURCE_DATE_EPOCH, and includes a local-tap helper, exact resource metadata,
-English instructions, package provenance and per-file/outer checksums. It
-never reads user configuration. The old PDF-guide bundle builder is retained
-for reproducing historical releases; new CLI distributions use this builder.
-
-From an extracted release:
+The owner installs and updates through Homebrew. ZIP distribution is no longer
+part of the normal process. Existing source-bundle scripts are retained only as
+an optional offline/historical maintenance path and are not installed by Brew.
 
 ```sh
-shasum -a 256 -c SHA256SUMS.txt
-python3.12 prepare-local-tap.py
-brew tap emaba/signing-tools-local "$PWD/homebrew-tap"
-brew install emaba/signing-tools-local/signing-tools
-env HOMEBREW_DEVELOPER=1 brew test emaba/signing-tools-local/signing-tools
+brew tap emaba/signp7m https://github.com/emaba/signp7m.git
+brew install emaba/signp7m/signing-tools
+env HOMEBREW_DEVELOPER=1 brew test emaba/signp7m/signing-tools
 ```
-
-The local formula uses the supplied source archive and SHA-256, so GitHub read
-access is unnecessary. Keep the package for future rebuilds. Runtime operation
-does not depend on the extracted Downloads directory.
 
 Test the built wheel outside the checkout as well as editable development.
 Verify native imports, assets, a synthetic sample/list-fields operation, both
 signing pipelines with generated keys, safe configuration and migration.
 `brew test` runs only non-secret package/runtime checks, not a hardware signature.
+For the remote Git source, verify that version/revision checkout and offline
+wheel building both pass. A private repository requires Git read access.
 
 ## Publication boundaries
 

@@ -22,24 +22,22 @@ tested InfoCert JSafe/DS4 card) from the official issuer website. Connect the
 reader and verify that the issuer's application recognises the card.
 Do not apply historical useIFDCCID workarounds or reader firmware changes.
 
-## 2. Install through the supplied local Homebrew tap
+## 2. Install through Homebrew
 
-Unzip this folder, open Terminal and change to it. Adjust the path if necessary:
+The repository is currently private. The owner must grant your GitHub account
+read access and your Mac must have normal Git authentication configured. Do not
+paste credentials into a chat or into a formula. Public access will be simpler
+if the owner publishes the repository after validation.
 
 ```sh
-cd "$HOME/Downloads/signing-tools-macos-0.1.0"
-shasum -a 256 -c SHA256SUMS.txt
-python3.12 prepare-local-tap.py
-brew tap emaba/signing-tools-local "$PWD/homebrew-tap"
-brew install emaba/signing-tools-local/signing-tools
+brew tap emaba/signp7m https://github.com/emaba/signp7m.git
+brew install emaba/signp7m/signing-tools
 ```
 
-Python 3.12 is needed to run the preparation helper. If not already present:
-`brew install python@3.12`. Homebrew installs the remaining declared dependencies.
-The helper generates only a local Git tap and a formula with the supplied
-source archive's checksum; it never accesses a PIN or modifies the shell.
-The installed app runs independently of this folder. Keep the ZIP/folder for
-reinstallation or use an accessible remote tap for future releases.
+Homebrew installs the declared dependencies and the application in its private
+runtime. No ZIP, Python environment setup or sourced shell functions are needed.
+If you used the initial local validation tap, see docs/installation.md to move
+to the remote tap while preserving configuration.
 
 ## 3. Choose migration or fresh setup
 
