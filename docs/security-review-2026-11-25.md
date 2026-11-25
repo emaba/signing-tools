@@ -124,6 +124,23 @@ The simple Homebrew guide now lives in [quick-start.md](quick-start.md); the
 This source cleanup changes dependency-repair instructions but not the signing
 algorithm, credential resolution or loopback restriction.
 
+## Owner cleanup postflight
+
+The owner upgraded to 0.1.3 and passed `brew test`. A transactional owner-run
+cleanup moved 27 identified legacy applications, checkouts, installers and test
+artifacts (about 1.1 GiB apparent size) to a private Trash folder with a recovery
+manifest. It verified configuration bytes before/after and ran the full doctor
+without resolving a PIN. Signed user test PDFs and the active checkout were kept.
+
+Read-only postflight confirmed the old application/work directory and retired
+migration files are absent, the only active user settings file is mode-600
+`config.toml`, and only 0.1.3 remains installed in the Cellar. Package-scoped
+Homebrew cleanup removed the previous package/cache (reported 89.3 MB). Homebrew
+developer mode is disabled and its checkout is stable 7.0.16. Trash contents
+remain recoverable; their space is released only on permanent deletion.
+The current CLI no longer has an active legacy rollback record; restoring that
+old setup would require recovering its retired application and migration files.
+
 ## Limits and continued maintenance
 
 This is an evidence-based review, not a proof that the program or every native
