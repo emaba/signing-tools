@@ -90,6 +90,24 @@ and the rollback plan remains valid. No PIN resolution, card login or signature
 was requested during these checks. Open a new terminal to discard old functions
 already loaded in an existing shell.
 
+## Repository rename and 0.1.2 postflight
+
+The active public repository is now
+[emaba/signing-tools](https://github.com/emaba/signing-tools). The original public
+URL redirects to it, retaining the same repository identity and history.
+Release 0.1.2 updates package repository metadata, formula source/homepage,
+installation instructions and the active Git remote. Runtime dependencies and
+signing behaviour are unchanged from the reviewed 0.1.1 release.
+
+The owner installed the new `emaba/signing-tools/signing-tools` formula, passed
+`brew test`, and removed the previous `emaba/signp7m` tap. Read-only postflight
+confirmed all three commands resolve to 0.1.2, the installed package metadata
+points to the renamed repository, all doctor/provider checks pass, personal
+configuration is byte-identical and the rollback plan remains valid. The nine
+packaging checks passed, the secret scan retained only the previously reviewed
+variable-name false positive, and all commit emails still use GitHub noreply.
+These checks did not resolve a PIN or request a card login/signature.
+
 ## Limits and continued maintenance
 
 This is an evidence-based review, not a proof that the program or every native
