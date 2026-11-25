@@ -3,8 +3,8 @@
 class SigningTools < Formula
   desc "Local smart-card PDF and P7M signing with 1Password"
   homepage "https://github.com/emaba/signing-tools"
-  url "https://github.com/emaba/signing-tools.git", tag: "v0.1.2", revision: "a3440bac99e920c2505ff812f3e8b12d5035774d"
-  version "0.1.2"
+  url "https://github.com/emaba/signing-tools.git", tag: "v0.1.3", revision: "6a02752db79d4847405377eba80b7f197cb207cf"
+  version "0.1.3"
 
   depends_on "uv" => :build
   depends_on "python@3.12"
