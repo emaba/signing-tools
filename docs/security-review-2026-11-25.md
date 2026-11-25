@@ -64,6 +64,32 @@ dependency paths. Explicit local overrides and trusted PATH remain user authorit
   cryptographic/integrity checks. The private key stays on the card.
 - User configuration and migration backups remain outside Git and the Cellar.
 
+## Review dimensions
+
+| Dimension | Rating | Evidence and practical limits |
+| --- | --- | --- |
+| Security | Reviewed; identified issues corrected | [Hidden-input configuration](../src/signing_tools/cli.py#L40), [credential handoff](../src/signing_tools/signpdf.py#L499), [private workspace](../src/signing_tools/signpdf.py#L536), and [loopback request checks](../src/signing_tools/signpdf_picker.py#L120). No unresolved high/medium finding in this review; this is not a security guarantee. |
+| Performance | Adequate for a local tool; not benchmarked | [Rendering](../src/signing_tools/signpdf_picker.py#L77) limits image dimensions and retains only two page images. Native parsing/rendering of a malicious document is not covered by an application-wide execution-time limit. |
+| Correctness | Automated regression passed | [Signature verification](../src/signing_tools/signpdf.py#L381), synthetic cryptographic fixtures, tampering rejection and prior-signature checks. Hardware acceptance remains owner-run. |
+| Maintainability | Improved | Standard console entry points, one user configuration, Homebrew ownership, and checked [migration](../src/signing_tools/migration.py#L157)/[rollback](../src/signing_tools/migration.py#L220) with private backups. |
+
+## Publication and owner-installation postflight
+
+The new repository was verified as public without authentication. An original
+private-history commit was unavailable anonymously. Only rewritten branches and
+the reviewed 0.1.1 tag were uploaded; the original remains a separate private,
+archived repository. No old Git identity or private reference was present in the
+new local object database, including unreachable objects.
+
+The owner then re-created the tap, installed 0.1.1 from the public Git source,
+and passed `brew test`. Homebrew verified the source and all wheel resources.
+Read-only postflight confirmed all three executable links target 0.1.1, the
+installed receipt names `emaba/signp7m`, all full doctor/provider checks pass,
+the temporary local tap is removed, personal configuration is byte-identical,
+and the rollback plan remains valid. No PIN resolution, card login or signature
+was requested during these checks. Open a new terminal to discard old functions
+already loaded in an existing shell.
+
 ## Limits and continued maintenance
 
 This is an evidence-based review, not a proof that the program or every native
