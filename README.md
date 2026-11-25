@@ -15,7 +15,9 @@ Homebrew owns the application, its private Python environment and executable
 links. No Fish installation, shell functions, shell startup edits, global pip
 packages or application-specific background service are needed.
 
-The initial tap supports **Apple Silicon, macOS 13 or later, Python 3.12**.
+The formula targets **Apple Silicon, macOS 13 or later, Python 3.12**. A fresh
+supported Homebrew setup currently requires **macOS 15 or later**; follow the
+[complete installation guide](docs/quick-start.md), including SafeDive and 1Password.
 The pinned cryptography release has no upstream Intel macOS wheel; Intel
 support needs a separately verified dependency/build path.
 

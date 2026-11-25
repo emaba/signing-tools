@@ -12,8 +12,13 @@ records and backups. Package upgrades/removal preserve these files.
 
 ## Dependencies
 
-Use a native Apple Silicon Homebrew installation. The initial formula targets
-macOS 13+, Python 3.12, and the exact previously tested Python runtime versions.
+For a fresh setup, follow [the complete quick start](quick-start.md), including
+Command Line Tools, Homebrew, SafeDive, 1Password, card settings and first tests.
+
+Use a native Apple Silicon Homebrew installation. Current Homebrew's supported
+installation requires macOS 15+; the formula itself declares macOS 13+ and Python
+3.12 with exact previously tested Python runtime versions. Its lower OS bound
+does not guarantee support by current Homebrew or third-party middleware.
 It installs Python, OpenSSL, libp11 and OpenSC as formula dependencies. Install
 1Password desktop/CLI and the issuer's middleware separately if missing:
 
@@ -21,8 +26,10 @@ It installs Python, OpenSSL, libp11 and OpenSC as formula dependencies. Install
 brew install --cask 1password-cli
 ```
 
-Keep an existing working 1Password installation. Install the matching SafeDive
-middleware from the issuer. Do not change reader firmware or useIFDCCID settings.
+Keep an existing working 1Password installation. For InfoCert JSafe, follow
+[the SafeDive download and installation steps](quick-start.md#3-install-safedive-and-connect-the-card)
+and verify the expected library. Other cards require their issuer's matching
+middleware and profile. Do not change reader firmware or useIFDCCID settings.
 Enable **Settings > Developer > Integrate with 1Password CLI** in 1Password.
 Use your card's digital-signature PIN, not a CNS authentication PIN, PUK, Mac
 password or account password. Only the owner enters that PIN in a concealed
