@@ -52,6 +52,13 @@ class FormulaTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 generate(revision, tag, self.resources, **extras)
 
+    def test_source_compatibility_helpers_do_not_dispatch_signing(self):
+        for name in ('signpdf_appearance.py', 'signpdf_picker.py'):
+            result=subprocess.run([sys.executable, str(ROOT / name), 'synthetic-unused.pdf'],
+                                  capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout + result.stderr, '')
+
     def test_package_exposes_three_console_scripts_and_assets(self):
         package = tomllib.loads((ROOT / 'pyproject.toml').read_text())
         self.assertEqual(set(package['project']['scripts']), {'signpdf', 'signp7m', 'signing-tools'})
