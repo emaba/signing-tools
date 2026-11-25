@@ -16,8 +16,8 @@ def check(*, runtime_only=False):
         results.append(bool(good))
         print(("PASS" if good else "FAIL") + ": " + label)
 
-    for name, required in (("pyHanko", "0.38.0"), ("pypdf", "6.10.0"),
-                           ("pypdfium2", "5.14.0"), ("Pillow", "12.3.0")):
+    for name, required in (("pyHanko", "0.38.0"), ("pypdf", "7.1.1"),
+                           ("pypdfium2", "5.15.2"), ("Pillow", "13.0.0")):
         try:
             report(name + " " + required, importlib.metadata.version(name) == required)
         except importlib.metadata.PackageNotFoundError:

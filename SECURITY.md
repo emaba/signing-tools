@@ -1,5 +1,8 @@
 # Security notes
 
+See the [pre-publication review](docs/security-review-2026-11-25.md) for the
+November 25, 2026 privacy/dependency audit, corrections and limits.
+
 ## Secrets and signing authority
 
 - Never commit a PIN, password, token, private key, credential export, or real

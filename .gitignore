@@ -1,4 +1,8 @@
 # Local configuration and credentials
+/config.toml
+/migration.json
+/backups/
+*.har
 .env
 .env.*
 !.env.example

@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class SourceGuardTests(unittest.TestCase):
     def test_rejects_private_documents_local_configuration_and_traversal(self):
-        for name in ("../outside", "/absolute", ".env", "config.local.fish", "config.local.sh", "settings.sh", "real.pdf", "key.pem",
+        for name in ("../outside", "/absolute", ".env", "config.local.fish", "config.local.sh", "settings.sh", "config.toml", "migration.json", "real.pdf", "key.pem",
                      ".git/config", ".venv/bin/python", "__pycache__/cached.pyc"):
             with self.subTest(name=name), self.assertRaises(builder.BundleError):
                 builder.safe_source_name(name)

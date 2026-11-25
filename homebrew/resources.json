@@ -161,12 +161,12 @@
     },
     {
       "name": "pillow",
-      "version": "12.3.0",
+      "version": "13.0.0",
       "wheels": {
         "arm64": {
-          "filename": "pillow-12.3.0-cp312-cp312-macosx_11_0_arm64.whl",
-          "sha256": "ffd0c5368496f41b0944be820fcb7a838aa6e623d250b01acf2643939c3f99d7",
-          "url": "https://files.pythonhosted.org/packages/d8/66/9a386a92561f402389a4fc70c18838bf6d35eb5eb5c6850b4b2dc64f5048/pillow-12.3.0-cp312-cp312-macosx_11_0_arm64.whl"
+          "filename": "pillow-13.0.0-cp312-cp312-macosx_11_0_arm64.whl",
+          "sha256": "fc481f742ccda20e9ed760b8f978dff50f2a4e9bc253ac167fb0a05b0783ef52",
+          "url": "https://files.pythonhosted.org/packages/39/4b/f2ed53d83aa44ac19599ac0a54897f867fafb95f406980d1e24083f8cbe3/pillow-13.0.0-cp312-cp312-macosx_11_0_arm64.whl"
         }
       }
     },
@@ -216,23 +216,23 @@
     },
     {
       "name": "pypdf",
-      "version": "6.10.0",
+      "version": "7.1.1",
       "wheels": {
         "arm64": {
-          "filename": "pypdf-6.10.0-py3-none-any.whl",
-          "sha256": "90005e959e1596c6e6c84c8b0ad383285b3e17011751cedd17f2ce8fcdfc86de",
-          "url": "https://files.pythonhosted.org/packages/55/f2/7ebe366f633f30a6ad105f650f44f24f98cb1335c4157d21ae47138b3482/pypdf-6.10.0-py3-none-any.whl"
+          "filename": "pypdf-7.1.1-py3-none-any.whl",
+          "sha256": "04c5680d4b4cfa04ab505b09393fc949860c34a4dad6565284d11a2f5c3ce8b1",
+          "url": "https://files.pythonhosted.org/packages/5b/ef/11ed995bd10a1632f7fea3da38ae8d42bc3ccc5b9969fe04d8620c844408/pypdf-7.1.1-py3-none-any.whl"
         }
       }
     },
     {
       "name": "pypdfium2",
-      "version": "5.14.0",
+      "version": "5.15.2",
       "wheels": {
         "arm64": {
-          "filename": "pypdfium2-5.14.0-py3-none-macosx_13_0_arm64.whl",
-          "sha256": "2de384df66ba55fcaab0775f30f28ec1090af3dfa60276a07821efc96d993118",
-          "url": "https://files.pythonhosted.org/packages/d1/ea/14673bc9d8b7beeaa1eb46e9951b22543edaf2a4676c586e3b1e032ff6ee/pypdfium2-5.14.0-py3-none-macosx_13_0_arm64.whl"
+          "filename": "pypdfium2-5.15.2-py3-none-macosx_13_0_arm64.whl",
+          "sha256": "e71fe832e94421ac3c28d6a6ed4a9e61f22417089652d339f391c4ffc2a44c35",
+          "url": "https://files.pythonhosted.org/packages/e7/bb/bf88a781a53c905022b25b2d1fb742c908f86b8076403471f626cc41a508/pypdfium2-5.15.2-py3-none-macosx_13_0_arm64.whl"
         }
       }
     },

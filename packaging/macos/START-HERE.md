@@ -24,10 +24,7 @@ Do not apply historical useIFDCCID workarounds or reader firmware changes.
 
 ## 2. Install through Homebrew
 
-The repository is currently private. The owner must grant your GitHub account
-read access and your Mac must have normal Git authentication configured. Do not
-paste credentials into a chat or into a formula. Public access will be simpler
-if the owner publishes the repository after validation.
+The public repository requires no GitHub account or authentication.
 
 ```sh
 brew tap emaba/signp7m https://github.com/emaba/signp7m.git

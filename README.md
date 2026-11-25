@@ -26,8 +26,7 @@ brew tap emaba/signp7m https://github.com/emaba/signp7m.git
 brew install emaba/signp7m/signing-tools
 ```
 
-The repository is currently private: Git read access is required until the owner
-chooses to make it public. No ZIP is needed. See
+The public tap needs no GitHub authentication. No ZIP is needed. See
 [installation and migration](docs/installation.md) and the
 [simple installation guide](packaging/macos/START-HERE.md).
 

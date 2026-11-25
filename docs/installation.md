@@ -31,9 +31,8 @@ or reveal the PIN in a chat or diagnostic output.
 
 ## Install from the remote Homebrew tap
 
-The repository remains private until the owner chooses to publish it. Each Mac
-needs normal Git read access. Use the existing credential/SSH agent and never
-put a token, password or private key into a formula or configuration.
+The public repository requires no GitHub credentials. Never put a token,
+password or private key into a formula or signing configuration.
 
 ```sh
 brew tap emaba/signp7m https://github.com/emaba/signp7m.git

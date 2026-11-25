@@ -73,7 +73,7 @@ Verify native imports, assets, a synthetic sample/list-fields operation, both
 signing pipelines with generated keys, safe configuration and migration.
 `brew test` runs only non-secret package/runtime checks, not a hardware signature.
 For the remote Git source, verify that version/revision checkout and offline
-wheel building both pass. A private repository requires Git read access.
+wheel building both pass. The public source repository requires no GitHub authentication.
 
 ## Publication boundaries
 

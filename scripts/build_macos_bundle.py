@@ -47,7 +47,7 @@ def safe_source_name(name):
         raise BundleError("the source archive contains a development or Git directory")
     if (path.suffix.lower() in PRIVATE_SUFFIXES or path.name == ".env"
             or path.name.startswith(".env.") or path.name.endswith((".local.fish", ".local.sh"))
-            or path.name == "settings.sh"):
+            or path.name in {"settings.sh", "config.toml", "migration.json"}):
         raise BundleError("the source archive contains a document or local credential/configuration file")
     return path
 

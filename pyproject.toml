@@ -4,15 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "signing-tools"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local smart-card CAdES and PAdES signing tools for macOS"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "pyHanko[pkcs11,opentype]==0.38.0",
-  "pypdf==6.10.0",
-  "pypdfium2==5.14.0",
-  "Pillow==12.3.0",
+  "pypdf==7.1.1",
+  "pypdfium2==5.15.2",
+  "Pillow==13.0.0",
 ]
 
 [project.scripts]

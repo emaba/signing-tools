@@ -19,7 +19,7 @@ def generate(revision, tag, resources, *, archive=None, sha256=None):
               [f'  url "https://github.com/emaba/signp7m.git", tag: "{tag}", revision: "{revision}"'])
     lines = [
         "# Third-party macOS tap: upstream wheels are pinned and SHA-256 verified.",
-        "# This private distribution is not a homebrew/core submission.",
+        "# This third-party distribution is not a homebrew/core submission.",
         "class SigningTools < Formula",
         '  desc "Local smart-card PDF and P7M signing with 1Password"',
         '  homepage "https://github.com/emaba/signp7m"',
@@ -94,7 +94,7 @@ def main():
     parser.add_argument("--revision")
     parser.add_argument("--archive")
     parser.add_argument("--sha256")
-    parser.add_argument("--tag", default="v0.1.0")
+    parser.add_argument("--tag", default="v0.1.1")
     parser.add_argument("--resources", type=Path, default=ROOT / "homebrew/resources.json")
     parser.add_argument("--output", type=Path, default=ROOT / "Formula/signing-tools.rb")
     args = parser.parse_args()

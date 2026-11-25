@@ -2,6 +2,7 @@
 
 from contextlib import redirect_stdout, redirect_stderr
 import io
+import getpass
 import os
 from pathlib import Path
 import stat
@@ -64,6 +65,15 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(cli.main(["configure"]), 1)
         self.assertFalse(self.path.exists())
         self.assertNotIn("SYNTHETIC_LITERAL_PIN", output.getvalue())
+
+    def test_configure_refuses_a_prompt_that_cannot_hide_input(self):
+        output=io.StringIO()
+        with patch.dict(os.environ, {"SIGNING_TOOLS_CONFIG": str(self.path)}), \
+             patch("getpass.getpass", side_effect=getpass.GetPassWarning), \
+             redirect_stdout(output), redirect_stderr(output):
+            self.assertEqual(cli.main(["configure"]), 1)
+        self.assertFalse(self.path.exists())
+        self.assertIn("interactive terminal with hidden input", output.getvalue())
 
     def test_configure_keeps_reference_and_updates_optional_slot(self):
         config.create(self.settings, self.path)

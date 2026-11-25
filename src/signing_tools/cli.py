@@ -8,6 +8,7 @@ from pathlib import Path
 import secrets
 import shutil
 import sys
+import warnings
 
 from . import __version__, config
 
@@ -44,7 +45,12 @@ def configure(args):
     signing = settings.setdefault("signing", {})
     print("Enter the 1Password secret reference, never the actual card PIN.")
     print("The reference will not be echoed or printed.")
-    reference = getpass.getpass("PIN secret reference (Enter keeps an existing reference): ")
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", getpass.GetPassWarning)
+            reference = getpass.getpass("PIN secret reference (Enter keeps an existing reference): ")
+    except getpass.GetPassWarning:
+        raise config.ConfigError("run configure in an interactive terminal with hidden input") from None
     if reference:
         if not config.valid_reference(reference):
             raise config.ConfigError("expected a 1Password op:// reference; nothing was saved")

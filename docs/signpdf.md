@@ -11,7 +11,7 @@ signature fields, invisible signatures, visible rectangles in millimetres,
 and sequential signatures. Automatic blank-space detection, timestamps, and
 long-term validation profiles are not implemented.
 
-The implementation uses pyHanko 0.38.0 and pypdf 6.10.0. Tests cover file
+The implementation uses pyHanko 0.38.0 and pypdf 7.1.1. Tests cover file
 handling and page geometry. Integration tests create real PDF signatures with
 synthetic in-memory keys: invisible, visible on a cropped/rotated page,
 existing field, sequential signatures, certification locks, and tampering

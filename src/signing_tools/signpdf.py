@@ -504,7 +504,8 @@ def authenticate_and_sign(source, staged, placement, settings, directory):
     request.chmod(0o600)
     # op run resolves every reference in its environment. Supply only this one,
     # avoiding duplicate PIN copies or resolution of unrelated references.
-    env = {key: value for key, value in os.environ.items() if not value.startswith("op://")}
+    env = {key: value for key, value in os.environ.items()
+           if not value.startswith("op://") and key not in ("PKCS11_PIN", PIN_ENV)}
     env[PIN_ENV] = settings["reference"]
     result = subprocess.run(
         [executable("op"), "run", "--", sys.executable, "-m", "signing_tools.worker", str(request)], env=env,

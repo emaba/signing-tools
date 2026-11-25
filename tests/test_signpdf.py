@@ -326,13 +326,16 @@ class PDFCase(PDFTestBase):
         settings = dict(reference="op://TEST_VAULT/TEST_ITEM/TEST_FIELD", module="test-module",
                         token="TEST", key_id="01", cert_id="01", raw_mechanism=False)
         with signpdf.private_workspace(self.root) as directory:
-            with patch.object(signpdf.subprocess, "run") as run:
+            with patch.object(signpdf.subprocess, "run") as run, \
+                 patch.dict(os.environ, {"PKCS11_PIN": "SYNTHETIC_STALE_VALUE", signpdf.PIN_ENV: "SYNTHETIC_STALE_VALUE"}):
                 run.return_value.returncode = 0
                 signpdf.authenticate_and_sign(self.source, directory / "signed.pdf",
                                               signpdf.Placement("Signature1", False), settings, directory)
             self.assertNotIn("op://", (directory / "request.json").read_text())
             self.assertEqual(run.call_args.kwargs["env"][signpdf.PIN_ENV], settings["reference"])
             self.assertNotIn(settings["reference"], run.call_args.args[0])
+            self.assertNotIn("PKCS11_PIN", run.call_args.kwargs["env"])
+            self.assertNotIn("SYNTHETIC_STALE_VALUE", run.call_args.kwargs["env"].values())
             self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o700)
 
     def test_exception_payloads_are_not_printed(self):
