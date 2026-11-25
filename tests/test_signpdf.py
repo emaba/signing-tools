@@ -453,12 +453,14 @@ class ReferenceTests(unittest.TestCase):
             self.assertEqual(signpdf.signing_settings()["reference"], "op://Explicit Vault/Item/password")
         legacy.assert_not_called()
 
-    def test_missing_environment_reference_uses_legacy_reference(self):
+    def test_missing_reference_does_not_implicitly_read_fish(self):
         with patch.dict(os.environ, {}, clear=True), \
-             patch.object(signpdf, "legacy_pin_reference", return_value="op://Test Vault/Item/password"), \
+             patch.object(signpdf, "legacy_pin_reference", return_value="op://Test Vault/Item/password") as legacy, \
              patch.object(Path, "is_file", return_value=True), \
              patch.object(signpdf.shutil, "which", return_value="/synthetic/op"):
-            self.assertEqual(signpdf.signing_settings()["reference"], "op://Test Vault/Item/password")
+            with self.assertRaises(signpdf.SignPDFError):
+                signpdf.signing_settings()
+            legacy.assert_not_called()
 
     def test_unrelated_references_are_not_resolved_by_op_run(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -37,3 +37,7 @@ __pycache__/
 # Generated distribution artifacts and optional packaging environment
 /dist/
 /.venv-packaging/
+/build/
+*.egg-info/
+/.venv-cli/
+/.brew-work/

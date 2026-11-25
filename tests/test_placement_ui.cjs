@@ -44,7 +44,7 @@ async function fixture(warnings = []) {
     return {ok: true, json: async () => ({title: 'Synthetic test.pdf', initial_page: 3,
       pages: Array.from({length: 3}, () => ({width_mm: 210, height_mm: 297})), style: 'split', warnings})};
   };
-  const source = fs.readFileSync(path.join(__dirname, '../assets/placement/app.js'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '../src/signing_tools/assets/placement/app.js'), 'utf8');
   vm.runInNewContext(source, {document, window: {addEventListener() {}}, Image, fetch});
   await new Promise(resolve => setImmediate(resolve));
   return {get, posts};

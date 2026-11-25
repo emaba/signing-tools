@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools==84.2.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "signing-tools"
+version = "0.1.0"
+description = "Local smart-card CAdES and PAdES signing tools for macOS"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "pyHanko[pkcs11,opentype]==0.38.0",
+  "pypdf==6.10.0",
+  "pypdfium2==5.14.0",
+  "Pillow==12.3.0",
+]
+
+[project.scripts]
+signpdf = "signing_tools.cli:signpdf"
+signp7m = "signing_tools.cli:signp7m"
+signing-tools = "signing_tools.cli:main"
+
+[project.urls]
+Repository = "https://github.com/emaba/signp7m"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+signing_tools = ["assets/fonts/*", "assets/placement/*"]

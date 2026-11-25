@@ -1,121 +1,125 @@
-# Permanent macOS installation
+# Install and migrate the Homebrew-managed CLI
 
-This page describes the existing **Fish** integration. For a new Zsh/Bash
-installation without Fish, use [the shell-independent procedure](shells.md)
-or the shareable package's START-HERE guide. Both use the same isolated
-application layout; do not mix integration modes in an existing root.
+## Layout and ownership
 
-The existing `signp7m` Fish function is already a permanent installation.
-This installer leaves that function and its private configuration untouched.
-It installs `signpdf` independently of the checkout or Codex chat directory.
+The formula installs a private Python environment in its `libexec` and three
+executables in its `bin`. Homebrew exposes those commands through its normal
+prefix links (usually `/opt/homebrew/bin` on Apple Silicon). The application
+never creates a parallel updater or changes a shell startup file or PATH.
 
-## Layout
+Private user data is separate: `~/.config/signing-tools/config.toml`, migration
+records and backups. Package upgrades/removal preserve these files.
 
-```text
-~/Library/Application Support/signp7m/
-    current -> releases/<content-id>
-    install.json
-    releases/<content-id>/
-        app/                 # Reviewed source, assets, licenses and guides
-        venv/                # Private Python packages
-    backups/                 # Only if an older signpdf function existed
+## Dependencies
 
-~/.config/fish/functions/signpdf.fish
-    -> ~/Library/Application Support/signp7m/current/app/signpdf.fish
+Use a native Apple Silicon Homebrew installation. The initial formula targets
+macOS 13+, Python 3.12, and the exact previously tested Python runtime versions.
+It installs Python, OpenSSL, libp11 and OpenSC as formula dependencies. Install
+1Password desktop/CLI and the issuer's middleware separately if missing:
+
+```sh
+brew install --cask 1password-cli
 ```
 
-There is one application directory and one Fish autoload link. No `sudo`,
-global Python packages, PATH edits, shell startup configuration, login items,
-background service, macOS reader preference or PIN file is added. The local
-preview server runs only while choosing a signature position. Python 3.12 and
-`uv` must already be installed; the installer does not install global tools.
+Keep an existing working 1Password installation. Install the matching SafeDive
+middleware from the issuer. Do not change reader firmware or useIFDCCID settings.
+Enable **Settings > Developer > Integrate with 1Password CLI** in 1Password.
+Use your card's digital-signature PIN, not a CNS authentication PIN, PUK, Mac
+password or account password. Only the owner enters that PIN in a concealed
+1Password field and copies that field's secret reference. Never use `op read`
+or reveal the PIN in a chat or diagnostic output.
 
-The current Mac's Homebrew Python 3.12 is reused. The private environment's
-packages are copied rather than symlinked to a dependency cache. The working
-checkout, its development environment and download cache can be removed
-without breaking the installed command. Keep Homebrew Python 3.12, SafeDive,
-1Password CLI and the existing signing dependencies installed.
+## Private remote tap (future promotion)
 
-No reference is migrated or duplicated: the existing `signp7m` function remains
-the legacy fallback for the 1Password reference. Explicit reference variables
-still take precedence. The installer never opens that function or resolves a
-credential. Normal signing retains the existing worker-only PIN delivery.
+The formula is maintained on `codex/signpdf-pades`. The default `main` branch
+still contains the historical Fish tool, so use the local distribution below
+for current installations. After the reviewed formula is promoted to a tap's
+default branch, its remote installation can use:
 
-## Install
-
-From a reviewed checkout, in Fish:
-
-```fish
-python3.12 install_signpdf.py --plan
-python3.12 install_signpdf.py
+```sh
+brew tap emaba/signp7m https://github.com/emaba/signp7m.git
+brew install emaba/signp7m/signing-tools
 ```
 
-The plan prints only the target paths. Installation prepares a complete
-release and verifies startup/dependency imports before switching the current
-link. Existing releases remain available. An existing unrelated `signpdf`
-Fish file is backed up inside the application directory before replacement.
-Dependency downloads use a temporary cache inside the application directory,
-removed when installation ends. `--cache-dir PATH --offline` can reuse a
-previously populated cache without contacting a package index.
+The repository remains private and requires Git read access. Use an existing
+credential/SSH agent; never export credentials into a formula. Source tags pin
+an exact revision and all wheel resources have SHA-256 checksums. This is a
+third-party tap, not a Homebrew Core submission.
 
-Open a new terminal window after installation or update, then:
+## Local package without GitHub access
 
-```fish
-signpdf --help
-signpdf document.pdf --location Genova
-signp7m document.pdf
+A distribution folder supplies a versioned source archive, a wheel, the resource
+manifest and `prepare-local-tap.py`. From that folder:
+
+```sh
+python3.12 prepare-local-tap.py
+brew tap emaba/signing-tools-local "$PWD/homebrew-tap"
+brew install emaba/signing-tools-local/signing-tools
 ```
 
-The installed Fish command discovers its release and Python environment.
-It does not need `SIGNPDF_HOME` or `SIGNPDF_PYTHON`. Those variables remain
-supported for development and override discovery; remove old session-specific
-values or open a fresh terminal if they still point to a Codex checkout.
+The helper creates only a local Git tap and a formula pointing to the supplied
+archive with its SHA-256. It performs no package installation, shell change,
+credential lookup or signing. Keep the distribution for rebuilding/reinstalling;
+the installed commands do not depend on its location at runtime.
 
-Do not move the application directory or individual virtual environments:
-Python environments can contain absolute paths. To choose another location,
-install there with `--prefix PATH`; the autoload link finds that release.
+## Migrate this existing installation
 
-## Update and rollback
+First install the CLI package. Then:
 
-Review/pull the desired repository revision, then run the installer from that
-checkout again. Close active signing/placement sessions before updating.
-An update builds a new release with its own environment before activation.
-Failures before activation leave the previous release usable. The previous
-release ID and current ID are recorded in `install.json` without credentials.
-Installing the same source version again is a no-op after source-integrity
-checks. Retained releases consume disk space; they are deliberately kept for
-rollback rather than removed automatically.
-
-To roll back, inspect the recorded previous release ID and change the `current`
-symlink to that existing `releases/<content-id>` directory, then open a new
-terminal. Do not copy or move a virtual environment between release paths.
-
-## Uninstall
-
-From any directory:
-
-```fish
-python3.12 "$HOME/Library/Application Support/signp7m/current/app/install_signpdf.py" --uninstall
+```sh
+signing-tools migrate --plan
+signing-tools migrate
 ```
 
-The uninstaller removes only its managed Fish link, restores the backed-up
-older `signpdf` function if one existed, and moves the whole application
-directory to the user's Trash. It refuses to overwrite a Fish link that was
-changed after installation. `signp7m` and its configuration remain in place.
-Open a new terminal to discard any already loaded `signpdf` definition.
-The application folder can be recovered from Trash until Trash is emptied.
+The plan reports paths and whether a reference exists, never the reference
+value. Migration checks known legacy command paths, statically extracts only
+literal settings, creates private TOML configuration if absent, and moves the
+old Fish functions/settings to private backups. Existing TOML is preserved.
+A legacy Zsh/Bash source link becomes a comment-only bridge so an old source
+line will not fail or redefine commands. Remove that obsolete line later if desired.
+The old `~/Library/Application Support/signp7m` releases are kept for rollback.
 
-## Verification
+Open a **new Terminal** to discard functions already loaded in the old shell.
+Confirm that `command -v signpdf`, `command -v signp7m`, and
+`command -v signing-tools` resolve to Homebrew executables. Run:
 
-The installer checks command startup and dependency imports without accessing
-the card or 1Password. A fresh Fish shell should discover `signpdf` through the
-single link. A successful installation is not a real signing acceptance test;
-sign a disposable PDF locally to validate the reader and authorization flow.
+```sh
+signing-tools --version
+signing-tools doctor
+```
 
-On October 30, 2026, the installer was exercised in temporary directories,
-including paths with spaces. Transaction tests cover dependency/activation
-failure, preservation of the existing CAdES function, same-version reinstall,
-restoring an earlier PDF function on uninstall, and refusal to overwrite an
-owner-modified link. A separate real dependency installation passed startup
-through Fish autoload without `SIGNPDF_HOME` or `SIGNPDF_PYTHON`. No card or
-1Password operation was invoked by these installation checks.
+The checks do not resolve a PIN or log in to the card. A first actual sample
+signature remains an owner-run hardware/1Password acceptance check.
+
+## Fresh configuration
+
+```sh
+signing-tools configure
+signing-tools doctor
+signing-tools sample sample.pdf
+signpdf sample.pdf -o sample.pades.pdf
+signp7m sample.pdf -o sample.cades.p7m
+```
+
+The configuration prompt asks for an `op://...` reference and hides its entry;
+it never asks for the actual PIN. Inspect the generated PDF appearance and
+normal verification results. Stop on any PIN or locked-card error; never retry
+automatically or guess an identifier. Card defaults CNS/445334 and slot 0x2
+are profile/reader dependent. `configure --module PATH --slot 0xN` and the TOML
+file allow issuer-supported changes without shell configuration.
+
+## Updates, removal and rollback
+
+Use `brew upgrade signing-tools`. Keep configuration/backups outside the Cellar.
+To return to the old shell setup before removing the new package:
+
+```sh
+signing-tools rollback --plan
+signing-tools rollback
+brew uninstall signing-tools
+```
+
+Rollback refuses changed destination files or backups, restores the exact old
+functions and keeps the unified configuration as user data. Open a new Terminal.
+Brew removal alone does not restore legacy functions or delete user settings.
+Do not remove old Application Support releases until rollback is no longer needed.

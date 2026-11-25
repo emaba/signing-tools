@@ -5,18 +5,17 @@
 - Never commit a PIN, password, token, private key, credential export, or real
   document. A private GitHub repository is not a secret store. `.gitignore`
   prevents common accidents but does not scan content or remove Git history.
-- Keep `SIGNP7M_PIN_REF` in your Fish configuration outside the checkout. Only
-  the non-secret `op://` identifier is read by the function. The repository
-  contains a placeholder, not the owner's actual reference.
-- `PKCS11_PIN` is set locally to that reference. `op run` resolves it into the
-  environment of the signing subprocess; the parent Fish function does not
-  capture the plaintext PIN. The local reference variable is erased after
-  signing. The PKCS#11 provider and its process necessarily receive the PIN.
+- The private TOML configuration stores a 1Password reference, never a numeric
+  PIN. New files are mode `600`; configuration/backups are outside the Cellar.
+  `configure` uses a hidden local prompt and never resolves the reference.
+- `op run` resolves that reference only for the signing child. The CLI parent
+  does not capture the plaintext PIN. The PKCS#11 provider and worker necessarily
+  receive the resolved PIN in order to sign.
 - Environment delivery is not protection against a compromised account,
   debugger, malicious executable/library, process inspection, or a memory dump.
   Use trusted dependencies and a trusted `PATH`. Avoid tracing, environment
   dumps, verbose PIN diagnostics, and PKCS#11 spy modules.
-- The signing private key remains on the smart card. The function requests a
+- The signing private key remains on the smart card. The application requests a
   signature and exports only the public certificate. Signing may still require
   user authorization in 1Password. An unlocked authorized session can confer
   signing authority; lock the workstation and remove the card when appropriate.
@@ -25,15 +24,22 @@
 
 ## Files and verification
 
-The Zsh/Bash integration in `signing-tools.sh` loads private settings only in
-each command's subshell. Its settings contain a 1Password reference, never the
-PIN. `signp7m.py` is a shell-independent CAdES port: it uses a private snapshot,
-removes unrelated reference-valued environment entries from subprocesses and
-provides `PKCS11_PIN` only to the `op run` signing child. Subprocess diagnostics
-are suppressed to prevent token information from reaching the terminal.
-The OpenSSL provider necessarily receives the resolved PIN while signing.
-Its generated-key tests are not smart-card or 1Password acceptance tests.
-The original Fish implementation remains available and unchanged.
+Homebrew owns the Python application, private virtualenv, checksummed runtime
+resources and three executable links. It does not install startup functions,
+change PATH or update itself during a signing operation. Native tools use the
+formula's dependency paths unless explicitly overridden in private settings.
+
+Migration statically reads only recognised legacy settings, without executing
+shell code or resolving a PIN. It moves old command files into private backups
+and keeps the prior application. A checked migration record permits rollback;
+changed destination files are not overwritten. The legacy files may contain
+private reference metadata and must not be shared. Existing terminal processes
+can retain old functions until a new terminal is opened.
+
+The Python CAdES command uses a private snapshot, removes unrelated reference
+values from subprocess environments and provides `PKCS11_PIN` only to the
+`op run` signing child. Subprocess diagnostics are suppressed. Its generated-key
+tests do not establish real smart-card or 1Password acceptance.
 
 - A mode-`700` temporary directory is created beside the output. It temporarily
   holds the public certificate, signed document, and extracted document. The
@@ -79,11 +85,10 @@ selectors and paths, not a PIN or secret reference. Python does not guarantee
 erasure of secret strings from memory. No PIN is accepted as a command-line
 argument or stored in a file by this implementation.
 
-When no reference environment variable is configured, the program can reuse
-one unambiguous literal reference from the installed legacy Fish function,
-following scalar aliases without executing Fish. It never resolves the PIN
-during configuration discovery. Other reference-valued environment variables
-are omitted from the `op run` child to avoid unrelated secret resolution.
+Signing loads the unified configuration and explicit environment overrides.
+It never falls back to reading a legacy Fish function. Other reference-valued
+environment variables are omitted from the `op run` child to avoid unrelated
+secret resolution.
 
 The private workspace also contains a snapshot of the input PDF. Its mode is
 `700`, its snapshot/request files are mode `600`, and the final output is mode

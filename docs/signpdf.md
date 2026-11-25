@@ -110,51 +110,27 @@ graphical flow remains an owner-run check.
 
 ## Installation
 
-For a permanent installation without checkout-dependent paths, use the
-[macOS installer](installation.md). It creates one application directory and
-one Fish autoload link, keeps packages isolated, and preserves the existing
-`signp7m` function. The following setup is for development or temporary use.
+Use the [Homebrew installation](installation.md). `signpdf` is a Python console
+executable; Fish, sourced functions and checkout-dependent paths are unnecessary.
+Homebrew owns the application, isolated dependencies and command links. Personal
+settings live in the [shared TOML configuration](configuration.md).
 
-Use a dedicated Python 3.12 environment with the same architecture as SafeDive.
-From the repository, in Fish:
-
-```fish
-python3.12 -m venv .venv-signpdf
-.venv-signpdf/bin/python -m pip install -r requirements-signpdf.txt
-set -gx SIGNPDF_HOME (pwd -P)
-set -gx SIGNPDF_PYTHON "$SIGNPDF_HOME/.venv-signpdf/bin/python"
-source "$SIGNPDF_HOME/signpdf.fish"
-signpdf --help
-```
-
-For persistent installation, preserve any existing function, then copy
-`signpdf.fish` to `~/.config/fish/functions/signpdf.fish`. In a private Fish
-configuration outside the checkout, set `SIGNPDF_HOME` to the absolute checkout
-directory and `SIGNPDF_PYTHON` to its dedicated Python executable. Use Vim to
-edit that configuration. Update the paths if the checkout moves.
-
-The separate `pyhanko-cli` package and the OpenSSL/libp11 provider are not
-required by this function. The CAdES `signp7m` function is unchanged.
+For development, use the editable-package instructions in
+[distribution maintenance](distribution.md). Legacy Fish examples are archived
+in [the historical guide](legacy-fish.md) and are not the installed interface.
 
 ## Authentication and card settings
 
-| Variable | Default / fallback | Purpose |
-| --- | --- | --- |
-| `SIGNPDF_PIN_REF` | `SIGNP7M_PIN_REF`, then the legacy installed function | 1Password `op://VAULT_ID/ITEM_ID/FIELD_ID` reference |
-| `SIGNPDF_MODULE` | `SIGNP7M_MODULE`, then the standard SafeDive module | PKCS#11 library |
-| `SIGNPDF_TOKEN_LABEL` | `CNS` | Exactly one token must match |
-| `SIGNPDF_KEY_ID` | `SIGNP7M_KEY_ID`, then `445334` | Private key object ID in hexadecimal |
-| `SIGNPDF_CERT_ID` | Effective `SIGNPDF_KEY_ID` | Matching public certificate object ID |
-| `SIGNPDF_RAW_MECHANISM` | `0` | Set `1` only if separate hashing/signing is required |
-| `SIGNPDF_HOME` | Discovered from the Fish file | Optional absolute checkout/release directory override |
-| `SIGNPDF_PYTHON` | Discovered from the release or checkout | Optional dedicated Python executable override |
+The `[signing]` section supplies the shared `pin_reference`, `module`, `key_id`,
+`certificate_id`, `token_label` and `raw_mechanism` settings. Explicit legacy
+`SIGNPDF_*`/`SIGNP7M_*` environment overrides remain supported; see the
+[configuration table](configuration.md). Defaults are token `CNS`, object ID
+`445334`, and the standard SafeDive module below.
 
-If neither reference variable is configured, `signpdf` reads only scalar
-assignments from `~/.config/fish/functions/signp7m.fish` to find the historical
-`PKCS11_PIN` reference, including an unambiguous local variable alias. It does
-not execute, source, or modify that function. Ambiguous assignments, cycles,
-and computed values are rejected. The reference is not printed or copied into
-the repository. Explicit environment configuration takes precedence.
+Use `signing-tools configure` for a new setup, or `signing-tools migrate --plan`
+followed by `signing-tools migrate` for the old managed shell installation.
+Only the explicit migration command reads recognised legacy settings. Signing
+never discovers configuration by reading a Fish function or executing a shell.
 
 Vault, item, and section names can contain spaces; optional section paths are
 supported. Use the reference exactly as copied from 1Password. It identifies
@@ -289,10 +265,10 @@ location. It is also stored in the PDF signature's location metadata; omit it
 to omit the location line. It works as metadata with simple or invisible
 signatures too. Control characters and empty locations are rejected.
 
-The default fonts are the bundled `assets/fonts/KaushanScript-Regular.ttf`
+The default fonts are the packaged `assets/fonts/KaushanScript-Regular.ttf`
 and macOS's `Arial.ttf`, loaded from `/System/Library/Fonts/Supplemental`.
 Kaushan Script is distributed unmodified under the SIL Open Font License 1.1;
-see [font provenance and license](../assets/fonts/README.md). Only the used
+see [font provenance and license](../src/signing_tools/assets/fonts/README.md). Only the used
 glyphs are embedded in the resulting PDF. No system font files are distributed.
 Override them with `--script-font /path/to/script.ttf` and
 `--text-font /path/to/regular.ttf`. Standalone TTF/OTF fonts with Unicode maps
@@ -366,7 +342,6 @@ PKCS#11 traces or provide credentials when reporting a problem.
 ## Tests and hardware acceptance
 
 ```fish
-fish --no-config --no-execute signpdf.fish
 .venv-signpdf/bin/python -m unittest discover -s tests -v
 node --test tests/test_placement_ui.cjs
 ```
