@@ -106,12 +106,16 @@ signpdf sample.pdf -o sample.pades.pdf
 signp7m sample.pdf -o sample.cades.p7m
 ```
 
-The configuration prompt asks for an `op://...` reference and hides its entry;
-it never asks for the actual PIN. Inspect the generated PDF appearance and
+The default [configuration wizard](configuration.md#guided-setup) asks for an
+`op://...` reference privately, then selects the module, card and public signing
+certificate without login. It confirms the private key ID, derives the P7M URI
+and asks before saving the complete profile. It never asks for the actual PIN.
+Use `configure --manual` with issuer-confirmed identifiers when discovery is not
+available without authentication. Inspect the generated PDF appearance and
 normal verification results. Stop on any PIN or locked-card error; never retry
-automatically or guess an identifier. Card defaults CNS/445334 and slot 0x2
-are profile/reader dependent. `configure --module PATH --slot 0xN` and the TOML
-file allow issuer-supported changes without shell configuration.
+automatically or guess an identifier. Direct options such as
+`configure --module PATH --slot 0xN` still update selected fields without
+discovery; changing token/key identifiers regenerates the matching URI.
 
 ## Updates, removal and rollback
 

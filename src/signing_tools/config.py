@@ -16,7 +16,7 @@ SIGNING_KEYS = {
     "pin_reference": ("SIGNP7M_PIN_REF", "SIGNPDF_PIN_REF"),
     "module": ("SIGNP7M_MODULE", "SIGNPDF_MODULE"),
     "key_id": ("SIGNP7M_KEY_ID", "SIGNPDF_KEY_ID"),
-    "certificate_id": ("SIGNPDF_CERT_ID",),
+    "certificate_id": ("SIGNP7M_CERT_ID", "SIGNPDF_CERT_ID"),
     "token_label": ("SIGNPDF_TOKEN_LABEL",),
     "slot": ("SIGNP7M_SLOT",),
     "key_uri": ("SIGNP7M_KEY_URI",),

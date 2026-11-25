@@ -29,8 +29,13 @@ shell setup; do not add a separate signing-tools PATH modification.
    backs up retired legacy files. Never dump those files or the new TOML.
 5. Fresh setup: the owner enters their correct signing PIN privately in a
    concealed 1Password Password field, enables CLI integration and uses that
-   saved field's Copy Secret Reference menu. The configure prompt accepts only
-   that reference. Never fetch,
+   saved field's Copy Secret Reference menu. Run the default configure wizard;
+   let the owner select the library, card and signing certificate locally,
+   confirm the issuer's key ID and approve the complete summary. The key URI
+   is derived consistently for P7M. Public certificate discovery uses read-only
+   sessions without login, with a timeout; it does not verify the actual private
+   key. If discovery is unavailable, use --manual with issuer-confirmed values.
+   The hidden reference prompt accepts only that reference. Never fetch,
    print, request or validate the actual PIN, PUK, password or private key.
 6. Run signing-tools doctor and both --help commands. These checks do not
    access the PIN or log in to the card. Keep serials and certificate metadata

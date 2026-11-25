@@ -41,7 +41,7 @@ if name == "brew":
     print(os.environ["TEST_PROVIDER_PREFIX"])
 elif name == "pkcs11-tool":
     assert value("--slot") == os.environ.get("SIGNP7M_SLOT", "0x2")
-    assert value("--id") == os.environ.get("SIGNP7M_KEY_ID", "445334")
+    assert value("--id") == os.environ.get("SIGNP7M_CERT_ID", os.environ.get("SIGNP7M_KEY_ID", "445334"))
     fail("certificate")
     Path(value("--output-file")).write_bytes(b"PUBLIC TEST CERTIFICATE")
 elif name == "op":
@@ -171,6 +171,15 @@ class CAdESTests(unittest.TestCase):
             })
             self.assertEqual(result.returncode, 2)
         self.assertEqual(self.calls(), [])
+
+    def test_certificate_id_can_differ_from_private_key_id(self):
+        result = self.run_function(self.input, extra_env={
+            'SIGNP7M_CERT_ID': '0203', 'SIGNP7M_KEY_ID': '0102',
+            'SIGNP7M_KEY_URI': 'pkcs11:token=CNS;id=%01%02;type=private',
+        })
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        certificate_call = next(args for name, args in self.calls() if name == 'pkcs11-tool')
+        self.assertEqual(certificate_call[certificate_call.index('--id') + 1], '0203')
 
     def test_missing_input_or_output_directory(self):
         self.assertEqual(self.run_function("missing.pdf").returncode, 1)

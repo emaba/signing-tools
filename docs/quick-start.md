@@ -150,15 +150,27 @@ the numeric PIN**. The reference identifies the field; signing resolves its valu
 privately through 1Password. Do not share the reference or configuration file.
 [Official secret-reference instructions](https://developer.1password.com/docs/cli/secret-references/).
 
+Continue through the wizard: choose the installed SafeDive library, your reader/card
+and its **signing certificate**, checking the displayed name, expiry and purpose.
+Confirm the private key ID (normally the selected certificate ID; use another
+only if the issuer specifies it). The wizard sets the slot, token label and
+certificate ID, derives the matching P7M key URI, and shows a summary. Answer
+`y` only after reviewing it. The existing configuration is unchanged if you cancel.
+No PIN attempt, private key access or signature happens during this procedure.
+
+If public certificates cannot be listed without login, use
+`signing-tools configure --manual` with issuer-confirmed identifiers; do not enter
+a PIN to enable discovery. See [guided setup details](configuration.md#guided-setup).
+
 Doctor checks prerequisites without resolving the PIN or logging in to the card.
 All checks should report `PASS` before continuing. It does **not** establish
 whether the selected card, signing key, PIN, or slot is correct.
 
-The tested JSafe/DS4 profile uses token label `CNS`, signing key/certificate ID
-`445334` and P7M certificate slot `0x2`. The slot can vary with the reader and
-connected tokens. If these values do not match your setup, follow
+The wizard replaces hardcoded profile assumptions with the selected card's public
+identifiers. It cannot inspect a private key without login: the key ID still
+needs the issuer's confirmation if different from the certificate ID. Follow
 [Card detection or P7M certificate errors](#card-detection-or-p7m-certificate-errors)
-before attempting a signature. Do not guess identifiers or PINs.
+if needed. Do not guess identifiers or PINs.
 
 ## 6. Make a first test yourself
 

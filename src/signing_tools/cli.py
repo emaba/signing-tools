@@ -57,10 +57,22 @@ def configure(args):
         signing["pin_reference"] = reference
     if not config.valid_reference(signing.get("pin_reference")):
         raise config.ConfigError("a PIN secret reference is required; nothing was saved")
-    for name in ("module", "slot", "token_label", "key_id", "certificate_id"):
+    from .setup import complete_profile, guided
+    fields = ("module", "slot", "token_label", "key_id", "certificate_id", "raw_mechanism")
+    explicit = not (args.manual or args.wizard) and any(getattr(args, name) is not None for name in fields)
+    if explicit and (args.key_id is not None or args.token_label is not None) and signing.get('key_uri'):
+        if signing['key_uri'] != complete_profile(signing)['key_uri']:
+            raise config.ConfigError("a custom key URI is configured; use the wizard and review the new profile before changing identity")
+    if args.wizard and any(getattr(args, name) is not None for name in ('slot', 'token_label', 'key_id', 'certificate_id')):
+        raise config.ConfigError("select card/certificate identifiers interactively in the wizard, or supply field options without --wizard")
+    for name in fields:
         value = getattr(args, name)
         if value is not None:
             signing[name] = value
+    if args.manual or args.wizard or not any(getattr(args, name) is not None for name in fields):
+        settings['signing'] = guided(signing, manual=args.manual)
+    else:
+        settings['signing'] = complete_profile(signing, preserve_uri=args.key_id is None and args.token_label is None)
     contents = config.encode(settings)
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     temporary = path.with_name(path.name + ".tmp-" + secrets.token_hex(4))
@@ -89,9 +101,14 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Manage the local smart-card signing tools.")
     parser.add_argument("--version", action="version", version="signing-tools " + __version__)
     sub = parser.add_subparsers(dest="command", required=True)
-    conf = sub.add_parser("configure", help="store a PIN reference and optional card settings")
+    conf = sub.add_parser("configure", help="guided card setup and private PIN reference entry")
+    mode = conf.add_mutually_exclusive_group()
+    mode.add_argument("--wizard", action="store_true", help="run guided card discovery (default without field options)")
+    mode.add_argument("--manual", action="store_true", help="guide all settings without card discovery")
     for name in ("module", "slot", "token-label", "key-id", "certificate-id"):
         conf.add_argument("--" + name)
+    conf.add_argument("--raw-mechanism", action=argparse.BooleanOptionalAction, default=None,
+                      help="use the issuer's raw signing mechanism")
     doctor = sub.add_parser("doctor", help="check local prerequisites without resolving a PIN")
     doctor.add_argument("--runtime-only", action="store_true", help="check package/runtime without personal setup")
     sub.add_parser("config-path", help="show the configuration path, never its contents")

@@ -75,7 +75,7 @@ def execute(args):
             shutil.copyfileobj(incoming, outgoing)
         print("Reading InfoCert DS4 signing certificate...")
         run([executable("pkcs11-tool"), "--module", module, "--slot", os.environ.get("SIGNP7M_SLOT", "0x2"),
-             "--read-object", "--type", "cert", "--id", os.environ.get("SIGNP7M_KEY_ID", "445334"),
+             "--read-object", "--type", "cert", "--id", os.environ.get("SIGNP7M_CERT_ID", os.environ.get("SIGNP7M_KEY_ID", "445334")),
              "--output-file", str(certificate)], "failed to read signing certificate", env)
         run([executable("openssl"), "x509", "-inform", "DER", "-in", str(certificate), "-out", str(pem)],
             "certificate conversion failed", env)

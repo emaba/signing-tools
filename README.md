@@ -51,8 +51,11 @@ signing-tools configure
 signing-tools doctor
 ```
 
-Enter the PIN **reference** privately at the prompt. Install the correct issuer
-middleware and enable 1Password CLI integration before the first signing test.
+Enter the PIN **reference** privately, choose the middleware/card and public signing
+certificate in the wizard, confirm the key ID and review the profile before saving.
+The P7M URI is derived from the same token/key; no PIN login occurs during setup.
+Use `configure --manual` for issuer-confirmed values when discovery is unavailable.
+Install the correct issuer middleware and enable 1Password CLI integration before the first signing test.
 SafeDive and 1Password are external prerequisites, not redistributed here.
 
 ## Use

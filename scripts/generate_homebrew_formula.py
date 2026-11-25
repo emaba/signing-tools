@@ -76,6 +76,7 @@ def generate(revision, tag, resources):
 
   test do
     assert_match version.to_s, shell_output("#{bin}/signing-tools --version")
+    assert_match "--wizard", shell_output("#{bin}/signing-tools configure --help")
     system bin/"signing-tools", "doctor", "--runtime-only"
     system bin/"signing-tools", "sample", testpath/"sample.pdf"
     assert_match "No signature fields found", shell_output("#{bin}/signpdf --list-fields #{testpath}/sample.pdf")
@@ -89,7 +90,7 @@ end
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--revision")
-    parser.add_argument("--tag", default="v0.1.3")
+    parser.add_argument("--tag", default="v0.1.4")
     parser.add_argument("--resources", type=Path, default=ROOT / "homebrew/resources.json")
     parser.add_argument("--output", type=Path, default=ROOT / "Formula/signing-tools.rb")
     args = parser.parse_args()

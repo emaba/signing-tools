@@ -36,7 +36,7 @@ Install `packaging` in a development environment for resource selection, then:
 
 ```sh
 python scripts/collect_homebrew_resources.py
-python scripts/generate_homebrew_formula.py --revision SOURCE_COMMIT --tag v0.1.3
+python scripts/generate_homebrew_formula.py --revision SOURCE_COMMIT --tag v0.1.4
 ```
 
 The collector selects compatible wheels from official PyPI metadata and records
@@ -82,6 +82,22 @@ The formula references a public, immutable source tag. A PyPI release or code
 licence choice remains a separate decision.
 No secrets, actual documents, personal certificates or configuration are release
 inputs. The example op:// reference is a placeholder only.
+
+## 0.1.4 guided configuration validation (November 26, 2026)
+
+The default configure command now discovers public card/certificate identifiers
+without login, derives the matching P7M URI and confirms the complete profile
+before saving. Manual guided setup is available when unauthenticated discovery
+is not supported. Both signing pipelines now honour a separate certificate ID.
+Dependencies and their checksummed resources are unchanged.
+
+Validation: 127 Python tests and seven UI tests passed, including synthetic
+certificate discovery, no-login assertions, timeout/error redaction, cancellation
+without changing existing settings, and distinct certificate/private key IDs.
+The built wheel passed runtime/sample/help checks outside the checkout. A real
+terminal session with synthetic inputs confirmed hidden reference entry and
+mode-600 coherent configuration from the installed wheel. No actual PIN,
+1Password lookup, card login or hardware signature was used in these checks.
 
 ## Initial 0.1.0 migration acceptance (November 25, 2026)
 
