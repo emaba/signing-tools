@@ -5,7 +5,8 @@ Use the remote Homebrew tap documented in START-HERE.md.
 The application is a Python CLI, not a Fish/Zsh function collection. Do not
 install Fish, change login shells, edit PATH or add source lines.
 
-1. Verify Apple Silicon/macOS compatibility and private Git read access. Preserve working
+1. Verify Apple Silicon/macOS compatibility. The public tap needs no GitHub
+   credentials. Preserve working
    Homebrew, Python, 1Password and signing dependencies; do not perform general
    upgrades, cleanup or unrelated removals.
 2. Use brew tap and brew install from START-HERE.md; no ZIP is needed.

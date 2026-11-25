@@ -12,7 +12,7 @@ The initial third-party formula uses checked upstream wheels for Apple Silicon
 macOS 13+ / CPython 3.12. `cryptography==50.0.2` has no upstream Intel macOS
 wheel, so this formula deliberately restricts architecture rather than claiming
 untested Intel support. Native source builds or a separately verified Intel
-lock can be added later. This wheel-based private tap is not a Core submission.
+lock can be added later. This wheel-based third-party tap is not a Core submission.
 No application code/dependencies are fetched dynamically at runtime.
 
 ## Development and validation
@@ -48,7 +48,7 @@ Homebrew manages upgrades, links and removal; user configuration is external.
 
 Tag the fully reviewed source commit. The formula can be committed afterwards
 and point to that immutable tag/revision without a circular source hash.
-The repository remains private; tag publication does not change visibility.
+Tag publication does not change repository visibility.
 
 ## Release and upgrade
 
@@ -77,8 +77,8 @@ wheel building both pass. The public source repository requires no GitHub authen
 
 ## Publication boundaries
 
-The repository formula references the private source tag. A public tap/PyPI
-release, licence choice, or repository visibility change is a separate decision.
+The formula references a public, immutable source tag. A PyPI release or code
+licence choice remains a separate decision.
 No secrets, actual documents, personal certificates or configuration are release
 inputs. The example op:// reference is a placeholder only.
 

@@ -45,7 +45,15 @@ network resolution disabled. This is a third-party tap, not Homebrew Core.
 No ZIP or application-specific installer is needed.
 
 For the initial owner installation only, a local tap was used to validate the
-formula before publication. To move that installation to the remote tap:
+formula before publication. Recreate any tap cloned from the old private history
+before installing from the new public history. This does not change the current
+package, which is still associated with the local validation tap:
+
+```sh
+brew untap emaba/signp7m
+```
+
+Then install from the public tap:
 
 ```sh
 brew tap emaba/signp7m https://github.com/emaba/signp7m.git

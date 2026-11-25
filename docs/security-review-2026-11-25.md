@@ -51,7 +51,9 @@ dependency paths. Explicit local overrides and trusted PATH remain user authorit
 - Full-history and working-tree secret scans used complete redaction in reports.
 - pip-audit checked all 27 runtime packages plus the pinned setuptools build
   backend: no known vulnerabilities and no skipped packages at review time.
-- Automated tests cover synthetic CAdES/PAdES signatures, prior-signature and
+- All 140 Python tests and seven interface tests passed; 67 PDF tests also
+  passed against an independently installed 0.1.1 wheel. Automated checks cover
+  synthetic CAdES/PAdES signatures, prior-signature and
   modification checks, incompatible PDFs, hostile browser requests, loopback
   binding, server closure before authentication, migration and rollback.
 - The preview accepts no signing/PIN endpoint, serves only predefined resources
