@@ -71,7 +71,7 @@ shasum -a 256 -c SHA256SUMS.txt
 python3.12 prepare-local-tap.py
 brew tap emaba/signing-tools-local "$PWD/homebrew-tap"
 brew install emaba/signing-tools-local/signing-tools
-brew test emaba/signing-tools-local/signing-tools
+env HOMEBREW_DEVELOPER=1 brew test emaba/signing-tools-local/signing-tools
 ```
 
 The local formula uses the supplied source archive and SHA-256, so GitHub read
@@ -89,3 +89,25 @@ The repository formula references the private source tag. A public tap/PyPI
 release, licence choice, or repository visibility change is a separate decision.
 No secrets, actual documents, personal certificates or configuration are release
 inputs. The example op:// reference is a placeholder only.
+
+## Initial 0.1.0 migration acceptance (November 25, 2026)
+
+The owner installed the local formula on Apple Silicon through Homebrew and
+reported that its formula test passed. All three installed commands resolved
+to the formula's private runtime. Runtime checks, native imports, bundled assets,
+unsigned sample generation and PDF field listing passed. The application code
+also passed 137 automated Python checks and seven UI tests; 67 PDF tests passed
+against an installed wheel outside the checkout. A subsequent release-metadata
+regression test passed as well.
+
+The explicit migration retired two legacy Fish files, retained exact backups
+and the previous application, and created mode-600 reference-only configuration.
+Full doctor/provider checks and the read-only rollback plan passed. No PIN was
+resolved, no 1Password authentication was invoked, and no hardware signature was
+performed as part of this migration. The first signature with the new installed
+entry points remains an owner-run acceptance check.
+
+Homebrew upgraded its required build tool uv from 0.13.9 to 0.13.10. Its plain
+`brew test` also enabled persistent developer mode; `brew developer off` restores
+that setting. Future diagnostic examples use `HOMEBREW_DEVELOPER=1` for that
+single process to avoid changing the persistent mode.
